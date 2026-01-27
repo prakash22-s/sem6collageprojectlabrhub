@@ -29,7 +29,7 @@ export function AdminVerification() {
       <header className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <Button variant="ghost" size="sm" onClick={() => navigate('/admin/dashboard')} className="gap-2">
+            <Button variant="ghost" size="sm" onClick={() => navigate('/admin')} className="gap-2">
               <ArrowLeft className="h-4 w-4" />
               Back
             </Button>

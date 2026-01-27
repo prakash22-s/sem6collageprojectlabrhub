@@ -58,7 +58,7 @@ export const router = createBrowserRouter([
     Component: AdminVerification,
   },
   {
-    path: '/admin/dashboard',
+    path: '/admin',
     Component: AdminDashboard,
   },
 ]);

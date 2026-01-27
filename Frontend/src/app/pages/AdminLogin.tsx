@@ -21,7 +21,7 @@ export function AdminLogin() {
         role: 'admin',
       });
       toast.success('Admin login successful');
-      navigate('/admin/dashboard');
+      navigate('/admin');
     } else {
       toast.error('Invalid credentials');
     }

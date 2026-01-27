@@ -13,9 +13,6 @@ export function Landing() {
             <h1 className="text-2xl font-bold text-gray-900">LabourHub</h1>
           </div>
           <div className="flex gap-3">
-            <Link to="/admin/login">
-              <Button variant="ghost" size="sm">Admin</Button>
-            </Link>
             <Link to="/auth">
               <Button size="sm">Login</Button>
             </Link>
