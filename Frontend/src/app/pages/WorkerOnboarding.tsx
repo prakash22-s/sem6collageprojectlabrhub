@@ -7,12 +7,14 @@ import { Label } from '@/app/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/components/ui/select';
 import { Textarea } from '@/app/components/ui/textarea';
 import { useAuth } from '@/app/context/AuthContext';
+import { useWorkers } from '@/app/context/WorkerContext';
 import { skills } from '@/app/data/mockData';
 import { toast } from 'sonner';
 
 export function WorkerOnboarding() {
   const navigate = useNavigate();
   const { login } = useAuth();
+  const { addWorker } = useWorkers();
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     name: '',
@@ -27,24 +29,41 @@ export function WorkerOnboarding() {
 
   const handleSubmit = () => {
     // Validate all fields
-    if (!formData.name || !formData.phone || !formData.skill || !formData.experience) {
+    if (!formData.name || !formData.phone || !formData.skill || !formData.experience || !formData.pricePerDay || !formData.address) {
       toast.error('Please fill all required fields');
       return;
     }
 
-    // Simulate API call
-    toast.success('Application submitted successfully!');
-    login({
-      id: 'W001',
+    // Create worker object
+    const newWorker = {
+      id: `W${Date.now()}`,
       name: formData.name,
-      phone: formData.phone,
-      role: 'worker',
       skill: formData.skill,
-    });
+      rating: 0,
+      experience: parseInt(formData.experience),
+      distanceKm: 0,
+      phone: `+91 ${formData.phone}`,
+      isVerified: false,
+      isOnline: true,
+      pricePerDay: parseInt(formData.pricePerDay),
+      image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d',
+      completedJobs: 0,
+      languages: ['Hindi'],
+      address: formData.address,
+      aadhaarVerified: false,
+      policeVerified: false,
+    };
+
+    console.log('Adding worker:', newWorker);
+    
+    // Add worker to pending list
+    addWorker(newWorker);
+    
+    toast.success('Application submitted for admin approval!');
     
     // Show success message and redirect
     setTimeout(() => {
-      navigate('/worker/dashboard');
+      navigate('/');
     }, 1500);
   };
 

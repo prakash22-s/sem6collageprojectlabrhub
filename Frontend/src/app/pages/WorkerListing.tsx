@@ -5,17 +5,19 @@ import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/components/ui/select';
 import { Badge } from '@/app/components/ui/badge';
-import { mockWorkers, skills, type Worker } from '@/app/data/mockData';
+import { skills, type Worker } from '@/app/data/mockData';
 import { useAuth } from '@/app/context/AuthContext';
+import { useWorkers } from '@/app/context/WorkerContext';
 
 export function WorkerListing() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { approvedWorkers } = useWorkers();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSkill, setSelectedSkill] = useState('all');
   const [sortBy, setSortBy] = useState<'rating' | 'distance' | 'price'>('rating');
 
-  const filteredWorkers = mockWorkers
+  const filteredWorkers = approvedWorkers
     .filter((worker) => {
       const matchesSearch = worker.name.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesSkill = selectedSkill === 'all' || worker.skill === selectedSkill;
@@ -112,7 +114,8 @@ export function WorkerListing() {
         <div className="space-y-4">
           {filteredWorkers.length === 0 ? (
             <div className="bg-white rounded-lg shadow p-12 text-center">
-              <p className="text-gray-500">No workers found matching your criteria</p>
+              <p className="text-gray-500 mb-2">No approved workers available</p>
+              <p className="text-sm text-gray-400">Workers need admin approval before they appear here</p>
             </div>
           ) : (
             filteredWorkers.map((worker) => (

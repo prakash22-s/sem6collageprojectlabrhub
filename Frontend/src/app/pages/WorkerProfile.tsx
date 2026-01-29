@@ -3,12 +3,14 @@ import { ArrowLeft, Star, MapPin, Phone, Shield, CheckCircle2, MessageCircle } f
 import { Button } from '@/app/components/ui/button';
 import { Badge } from '@/app/components/ui/badge';
 import { Separator } from '@/app/components/ui/separator';
-import { mockWorkers, mockReviews } from '@/app/data/mockData';
+import { useWorkers } from '@/app/context/WorkerContext';
+import { mockReviews } from '@/app/data/mockData';
 
 export function WorkerProfile() {
   const navigate = useNavigate();
   const { id } = useParams();
-  const worker = mockWorkers.find((w) => w.id === id);
+  const { approvedWorkers } = useWorkers();
+  const worker = approvedWorkers.find((w) => w.id === id);
   const reviews = mockReviews.filter((r) => r.workerId === id);
 
   if (!worker) {

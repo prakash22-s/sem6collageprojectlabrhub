@@ -5,24 +5,26 @@ import { Button } from '@/app/components/ui/button';
 import { Badge } from '@/app/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/app/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/app/components/ui/dialog';
-import { mockWorkers } from '@/app/data/mockData';
+import { useWorkers } from '@/app/context/WorkerContext';
 import { toast } from 'sonner';
 
 export function AdminVerification() {
   const navigate = useNavigate();
-  const [workers] = useState(mockWorkers);
-  const [selectedWorker, setSelectedWorker] = useState<typeof mockWorkers[0] | null>(null);
+  const { pendingWorkers, approvedWorkers, approveWorker, rejectWorker } = useWorkers();
+  const [selectedWorker, setSelectedWorker] = useState<typeof pendingWorkers[0] | null>(null);
+
+  console.log('AdminVerification: Pending workers', pendingWorkers);
+  console.log('AdminVerification: Approved workers', approvedWorkers);
 
   const handleApprove = (workerId: string) => {
+    approveWorker(workerId);
     toast.success('Worker approved successfully');
   };
 
   const handleReject = (workerId: string) => {
+    rejectWorker(workerId);
     toast.error('Worker application rejected');
   };
-
-  const pendingWorkers = workers.filter((w) => !w.isVerified);
-  const verifiedWorkers = workers.filter((w) => w.isVerified);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -46,30 +48,42 @@ export function AdminVerification() {
               Pending ({pendingWorkers.length})
             </TabsTrigger>
             <TabsTrigger value="verified" className="flex-1">
-              Verified ({verifiedWorkers.length})
+              Verified ({approvedWorkers.length})
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="pending" className="mt-6">
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {pendingWorkers.map((worker) => (
-                <WorkerVerificationCard
-                  key={worker.id}
-                  worker={worker}
-                  onApprove={handleApprove}
-                  onReject={handleReject}
-                  onViewDetails={setSelectedWorker}
-                />
-              ))}
-            </div>
+            {pendingWorkers.length === 0 ? (
+              <div className="bg-white rounded-lg shadow p-8 text-center">
+                <p className="text-gray-500">No pending workers for verification</p>
+              </div>
+            ) : (
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {pendingWorkers.map((worker) => (
+                  <WorkerVerificationCard
+                    key={worker.id}
+                    worker={worker}
+                    onApprove={handleApprove}
+                    onReject={handleReject}
+                    onViewDetails={setSelectedWorker}
+                  />
+                ))}
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="verified" className="mt-6">
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {verifiedWorkers.map((worker) => (
-                <VerifiedWorkerCard key={worker.id} worker={worker} />
-              ))}
-            </div>
+            {approvedWorkers.length === 0 ? (
+              <div className="bg-white rounded-lg shadow p-8 text-center">
+                <p className="text-gray-500">No verified workers yet</p>
+              </div>
+            ) : (
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {approvedWorkers.map((worker) => (
+                  <VerifiedWorkerCard key={worker.id} worker={worker} />
+                ))}
+              </div>
+            )}
           </TabsContent>
         </Tabs>
 

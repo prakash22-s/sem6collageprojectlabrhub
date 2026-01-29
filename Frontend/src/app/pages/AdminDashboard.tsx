@@ -4,23 +4,25 @@ import { Button } from '@/app/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { Badge } from '@/app/components/ui/badge';
 import { useAuth } from '@/app/context/AuthContext';
-import { mockWorkers, mockBookings } from '@/app/data/mockData';
+import { useWorkers } from '@/app/context/WorkerContext';
+import { mockBookings } from '@/app/data/mockData';
 import type React from 'react';
 
 export function AdminDashboard() {
   const navigate = useNavigate();
   const { logout } = useAuth();
+  const { workers, pendingWorkers, approvedWorkers } = useWorkers();
 
-  const totalWorkers = mockWorkers.length;
-  const verifiedWorkers = mockWorkers.filter((w) => w.isVerified).length;
-  const pendingVerification = totalWorkers - verifiedWorkers;
+  const totalWorkers = workers.length;
+  const verifiedWorkers = approvedWorkers.length;
+  const pendingVerification = pendingWorkers.length;
   const totalBookings = mockBookings.length;
   const completedBookings = mockBookings.filter((b) => b.status === 'completed').length;
   const activeBookings = mockBookings.filter((b) => b.status === 'confirmed' || b.status === 'pending').length;
   const totalRevenue = mockBookings.reduce((sum, b) => sum + b.amount, 0);
 
   const recentBookings = mockBookings.slice(0, 5);
-  const recentWorkers = mockWorkers.slice(0, 5);
+  const recentWorkers = workers.slice(0, 5);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -181,7 +183,7 @@ export function AdminDashboard() {
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {['Electrician', 'Plumber', 'Carpenter', 'Mason'].map((skill) => {
-                const count = mockWorkers.filter((w) => w.skill === skill).length;
+                const count = workers.filter((w) => w.skill === skill).length;
                 return (
                   <div key={skill} className="bg-gray-50 rounded-lg p-4 text-center">
                     <p className="text-2xl font-bold text-gray-900">{count}</p>

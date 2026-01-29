@@ -5,7 +5,7 @@ import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
 import { Label } from '@/app/components/ui/label';
 import { Textarea } from '@/app/components/ui/textarea';
-import { mockWorkers } from '@/app/data/mockData';
+import { useWorkers } from '@/app/context/WorkerContext';
 import { useAuth } from '@/app/context/AuthContext';
 import { toast } from 'sonner';
 
@@ -13,7 +13,8 @@ export function HireWorker() {
   const navigate = useNavigate();
   const { id } = useParams();
   const { user } = useAuth();
-  const worker = mockWorkers.find((w) => w.id === id);
+  const { approvedWorkers } = useWorkers();
+  const worker = approvedWorkers.find((w) => w.id === id);
   const [date, setDate] = useState('');
   const [address, setAddress] = useState('');
   const [notes, setNotes] = useState('');

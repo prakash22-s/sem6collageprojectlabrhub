@@ -12,10 +12,15 @@ export function CustomerAuth() {
   const { login } = useAuth();
   const [step, setStep] = useState<'phone' | 'otp'>('phone');
   const [phone, setPhone] = useState('');
+  const [name, setName] = useState('');
   const [otp, setOtp] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSendOTP = () => {
+    if (!name.trim()) {
+      toast.error('Please enter your name');
+      return;
+    }
     if (phone.length !== 10) {
       toast.error('Please enter a valid 10-digit phone number');
       return;
@@ -40,7 +45,7 @@ export function CustomerAuth() {
       setIsLoading(false);
       login({
         id: 'C001',
-        name: 'Priya Mehta',
+        name: name.trim(),
         phone: `+91 ${phone}`,
         role: 'customer',
       });
@@ -90,6 +95,19 @@ export function CustomerAuth() {
 
             {step === 'phone' ? (
               <div className="space-y-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Full Name
+                  </label>
+                  <Input
+                    type="text"
+                    placeholder="Enter your full name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="w-full"
+                  />
+                </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Mobile Number
