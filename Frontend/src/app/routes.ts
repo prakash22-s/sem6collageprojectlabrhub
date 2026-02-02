@@ -7,7 +7,7 @@ import { WorkerProfile } from '@/app/pages/WorkerProfile';
 import { HireWorker } from '@/app/pages/HireWorker';
 import { CustomerDashboard } from '@/app/pages/CustomerDashboard';
 import { RatingFeedback } from '@/app/pages/RatingFeedback';
-import { WorkerDashboard } from '@/app/pages/WorkerDashboard';
+import { NewWorkerDashboard } from '@/app/pages/NewWorkerDashboard';
 import { AdminLogin } from '@/app/pages/AdminLogin';
 import { AdminVerification } from '@/app/pages/AdminVerification';
 import { AdminDashboard } from '@/app/pages/AdminDashboard';
@@ -47,7 +47,7 @@ export const router = createBrowserRouter([
   },
   {
     path: '/worker/dashboard',
-    Component: WorkerDashboard,
+    Component: NewWorkerDashboard,
   },
   {
     path: '/admin/login',

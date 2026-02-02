@@ -8,6 +8,7 @@ interface WorkerContextType {
   addWorker: (worker: Worker) => void;
   approveWorker: (workerId: string) => void;
   rejectWorker: (workerId: string) => void;
+  updateWorkerStatus: (workerId: string, isOnline: boolean) => void;
 }
 
 const WorkerContext = createContext<WorkerContextType | undefined>(undefined);
@@ -76,12 +77,18 @@ export function WorkerProvider({ children }: { children: ReactNode }) {
 
   const approveWorker = (workerId: string) => {
     setWorkers(prev => 
-      prev.map(w => w.id === workerId ? { ...w, isVerified: true } : w)
+      prev.map(w => w.id === workerId ? { ...w, isVerified: true, isOnline: false } : w)
     );
   };
 
   const rejectWorker = (workerId: string) => {
     setWorkers(prev => prev.filter(w => w.id !== workerId));
+  };
+
+  const updateWorkerStatus = (workerId: string, isOnline: boolean) => {
+    setWorkers(prev => 
+      prev.map(w => w.id === workerId ? { ...w, isOnline } : w)
+    );
   };
 
   return (
@@ -92,6 +99,7 @@ export function WorkerProvider({ children }: { children: ReactNode }) {
       addWorker,
       approveWorker,
       rejectWorker,
+      updateWorkerStatus,
     }}>
       {children}
     </WorkerContext.Provider>

@@ -59,9 +59,11 @@ export function CustomerAuth() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex flex-col">
+    <div className="min-h-screen flex flex-col relative" style={{backgroundImage: 'url(https://as1.ftcdn.net/v2/jpg/06/99/03/42/1000_F_699034283_p567iQuz3FXu930InT3TysoVZNMeLi9Y.jpg)', backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat'}}>
+      {/* Background Overlay */}
+      <div className="absolute inset-0 bg-white/85 backdrop-blur-sm"></div>
       {/* Header */}
-      <header className="bg-white shadow-sm">
+      <header className="bg-white/95 backdrop-blur-sm shadow-sm relative z-20">
         <div className="max-w-md mx-auto px-4 py-4">
           <Button
             variant="ghost"
@@ -76,7 +78,7 @@ export function CustomerAuth() {
       </header>
 
       {/* Main Content */}
-      <div className="flex-1 flex items-center justify-center px-4 py-8">
+      <div className="flex-1 flex items-center justify-center px-4 py-8 relative z-20">
         <div className="w-full max-w-md">
           <div className="bg-white rounded-2xl shadow-xl p-8">
             <div className="text-center mb-8">

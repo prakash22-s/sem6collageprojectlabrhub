@@ -117,3 +117,5 @@ export function RatingFeedback() {
     </div>
   );
 }
+
+export default RatingFeedback;

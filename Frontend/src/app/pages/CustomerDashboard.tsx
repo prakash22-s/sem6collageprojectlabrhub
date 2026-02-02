@@ -19,8 +19,11 @@ export function CustomerDashboard() {
   const completedBookings = mockBookings.filter((b) => b.status === 'completed');
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow-sm">
+    <div className="min-h-screen relative" style={{backgroundImage: 'url(https://as1.ftcdn.net/v2/jpg/06/99/03/42/1000_F_699034283_p567iQuz3FXu930InT3TysoVZNMeLi9Y.jpg)', backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat'}}>
+      {/* Background Overlay */}
+      <div className="absolute inset-0 bg-black/20"></div>
+      <div className="absolute inset-0 bg-white/10 backdrop-blur-sm"></div>
+      <header className="bg-white/98 backdrop-blur-sm shadow-sm relative z-20">
         <div className="max-w-3xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <h1 className="text-xl font-bold text-gray-900">My Dashboard</h1>
@@ -32,7 +35,7 @@ export function CustomerDashboard() {
         </div>
       </header>
 
-      <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
+      <div className="max-w-3xl mx-auto px-4 py-6 space-y-6 relative z-20">
         {/* Profile Card */}
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center gap-4">

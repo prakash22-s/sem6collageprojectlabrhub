@@ -4,9 +4,12 @@ import { Button } from '@/app/components/ui/button';
 
 export function Landing() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+    <div className="min-h-screen relative" style={{backgroundImage: 'url(https://as1.ftcdn.net/v2/jpg/06/99/03/42/1000_F_699034283_p567iQuz3FXu930InT3TysoVZNMeLi9Y.jpg)', backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat'}}>
+      {/* Background Overlay */}
+      <div className="absolute inset-0 bg-black/20"></div>
+      <div className="absolute inset-0 bg-white/10 backdrop-blur-sm"></div>
       {/* Header */}
-      <header className="bg-white shadow-sm">
+      <header className="bg-white/95 backdrop-blur-sm shadow-sm relative z-20">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Wrench className="h-8 w-8 text-blue-600" />
@@ -21,7 +24,7 @@ export function Landing() {
       </header>
 
       {/* Hero Section */}
-      <section className="max-w-7xl mx-auto px-4 py-16 md:py-24">
+      <section className="max-w-7xl mx-auto px-4 py-16 md:py-24 relative z-20">
         <div className="text-center max-w-3xl mx-auto">
           <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
             Find Trusted Workers
@@ -48,7 +51,7 @@ export function Landing() {
       </section>
 
       {/* Features Section */}
-      <section className="bg-white py-16">
+      <section className="bg-white py-16 relative z-20">
         <div className="max-w-7xl mx-auto px-4">
           <h3 className="text-3xl font-bold text-center text-gray-900 mb-12">
             Why Choose LabourHub?
@@ -74,7 +77,7 @@ export function Landing() {
       </section>
 
       {/* Worker Categories */}
-      <section className="py-16">
+      <section className="py-16 relative z-20">
         <div className="max-w-7xl mx-auto px-4">
           <h3 className="text-3xl font-bold text-center text-gray-900 mb-12">
             Available Services
@@ -93,7 +96,7 @@ export function Landing() {
       </section>
 
       {/* Stats Section */}
-      <section className="bg-blue-600 py-16">
+      <section className="bg-blue-600 py-16 relative z-20">
         <div className="max-w-7xl mx-auto px-4">
           <div className="grid md:grid-cols-3 gap-8 text-center text-white">
             <StatCard number="10,000+" label="Verified Workers" />
@@ -104,7 +107,7 @@ export function Landing() {
       </section>
 
       {/* Footer */}
-      <footer className="bg-gray-900 text-white py-12">
+      <footer className="bg-gray-900 text-white py-12 relative z-20">
         <div className="max-w-7xl mx-auto px-4 text-center">
           <div className="flex items-center justify-center gap-2 mb-4">
             <Wrench className="h-6 w-6" />

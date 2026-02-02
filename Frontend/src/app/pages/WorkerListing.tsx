@@ -18,6 +18,7 @@ export function WorkerListing() {
   const [sortBy, setSortBy] = useState<'rating' | 'distance' | 'price'>('rating');
 
   const filteredWorkers = approvedWorkers
+    .filter(worker => worker.isOnline) // Only show online workers
     .filter((worker) => {
       const matchesSearch = worker.name.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesSkill = selectedSkill === 'all' || worker.skill === selectedSkill;
@@ -31,9 +32,12 @@ export function WorkerListing() {
     });
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen relative" style={{backgroundImage: 'url(https://as1.ftcdn.net/v2/jpg/06/99/03/42/1000_F_699034283_p567iQuz3FXu930InT3TysoVZNMeLi9Y.jpg)', backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat'}}>
+      {/* Background Overlay */}
+      <div className="absolute inset-0 bg-black/20"></div>
+      <div className="absolute inset-0 bg-white/10 backdrop-blur-sm"></div>
       {/* Header */}
-      <header className="bg-white shadow-sm sticky top-0 z-10">
+      <header className="bg-white/98 backdrop-blur-sm shadow-sm sticky top-0 z-20">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between mb-4">
             <Button
@@ -104,7 +108,7 @@ export function WorkerListing() {
       </header>
 
       {/* Worker List */}
-      <div className="max-w-7xl mx-auto px-4 py-6">
+      <div className="max-w-7xl mx-auto px-4 py-6 relative z-20">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-gray-900">
             {filteredWorkers.length} Workers Found
@@ -114,8 +118,8 @@ export function WorkerListing() {
         <div className="space-y-4">
           {filteredWorkers.length === 0 ? (
             <div className="bg-white rounded-lg shadow p-12 text-center">
-              <p className="text-gray-500 mb-2">No approved workers available</p>
-              <p className="text-sm text-gray-400">Workers need admin approval before they appear here</p>
+              <p className="text-gray-500 mb-2">No online workers available</p>
+              <p className="text-sm text-gray-400">Workers need admin approval and must be online to appear here</p>
             </div>
           ) : (
             filteredWorkers.map((worker) => (

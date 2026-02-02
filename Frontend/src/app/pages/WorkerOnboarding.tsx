@@ -44,7 +44,7 @@ export function WorkerOnboarding() {
       distanceKm: 0,
       phone: `+91 ${formData.phone}`,
       isVerified: false,
-      isOnline: true,
+      isOnline: false,
       pricePerDay: parseInt(formData.pricePerDay),
       image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d',
       completedJobs: 0,
@@ -59,11 +59,21 @@ export function WorkerOnboarding() {
     // Add worker to pending list
     addWorker(newWorker);
     
-    toast.success('Application submitted for admin approval!');
+    // Log in the worker
+    login({
+      id: newWorker.id,
+      name: newWorker.name,
+      phone: newWorker.phone,
+      role: 'worker',
+      skill: newWorker.skill,
+      isVerified: newWorker.isVerified,
+    });
     
-    // Show success message and redirect
+    toast.success('Registration successful! Redirecting to your dashboard...');
+    
+    // Redirect to worker dashboard
     setTimeout(() => {
-      navigate('/');
+      navigate('/worker/dashboard');
     }, 1500);
   };
 
@@ -72,9 +82,12 @@ export function WorkerOnboarding() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+    <div className="min-h-screen relative" style={{backgroundImage: 'url(https://as1.ftcdn.net/v2/jpg/06/99/03/42/1000_F_699034283_p567iQuz3FXu930InT3TysoVZNMeLi9Y.jpg)', backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat'}}>
+      {/* Background Overlay */}
+      <div className="absolute inset-0 bg-black/20"></div>
+      <div className="absolute inset-0 bg-white/10 backdrop-blur-sm"></div>
       {/* Header */}
-      <header className="bg-white shadow-sm">
+      <header className="bg-white/95 backdrop-blur-sm shadow-sm relative z-20">
         <div className="max-w-3xl mx-auto px-4 py-4">
           <Button
             variant="ghost"
@@ -89,7 +102,7 @@ export function WorkerOnboarding() {
       </header>
 
       {/* Main Content */}
-      <div className="max-w-3xl mx-auto px-4 py-8">
+      <div className="max-w-3xl mx-auto px-4 py-8 relative z-20">
         {/* Progress Steps */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
