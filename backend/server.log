@@ -1,0 +1,63 @@
+🚀 Server running on port 5000
+📊 Environment: development
+MongoDB Connected: ac-hgfbjco-shard-00-00.ckrlriw.mongodb.net
+Login attempt for: user1@gmail.com
+User found with role: customer
+Login successful for role: customer
+🔍 GET /api/workers - Fetching verified workers...
+✅ Found verified workers: 8
+📋 Workers: [
+  { name: 'Kartik V', skill: 'Welder', verified: true },
+  { name: 'Surajji', skill: 'Electrician', verified: true },
+  { name: 'Ajitji ', skill: 'Plumber', verified: true },
+  { name: 'worker1', skill: 'Mason', verified: true },
+  { name: 'worker2', skill: 'Painter', verified: true },
+  { name: 'worker3', skill: 'AC Technician', verified: true },
+  { name: 'worker4', skill: 'Welder', verified: true },
+  { name: 'worker11', skill: 'Welder', verified: true }
+]
+🔍 GET /api/workers - Fetching verified workers...
+✅ Found verified workers: 8
+📋 Workers: [
+  { name: 'Kartik V', skill: 'Welder', verified: true },
+  { name: 'Surajji', skill: 'Electrician', verified: true },
+  { name: 'Ajitji ', skill: 'Plumber', verified: true },
+  { name: 'worker1', skill: 'Mason', verified: true },
+  { name: 'worker2', skill: 'Painter', verified: true },
+  { name: 'worker3', skill: 'AC Technician', verified: true },
+  { name: 'worker4', skill: 'Welder', verified: true },
+  { name: 'worker11', skill: 'Welder', verified: true }
+]
+Login attempt for: kartikv@gmail.com
+User found with role: worker
+Login successful for role: worker
+Login attempt for: user1@gmail.com
+User found with role: customer
+Login successful for role: customer
+🔍 GET /api/workers - Fetching verified workers...
+✅ Found verified workers: 8
+📋 Workers: [
+  { name: 'Kartik V', skill: 'Welder', verified: true },
+  { name: 'Surajji', skill: 'Electrician', verified: true },
+  { name: 'Ajitji ', skill: 'Plumber', verified: true },
+  { name: 'worker1', skill: 'Mason', verified: true },
+  { name: 'worker2', skill: 'Painter', verified: true },
+  { name: 'worker3', skill: 'AC Technician', verified: true },
+  { name: 'worker4', skill: 'Welder', verified: true },
+  { name: 'worker11', skill: 'Welder', verified: true }
+]
+🔍 GET /api/workers - Fetching verified workers...
+✅ Found verified workers: 8
+📋 Workers: [
+  { name: 'Kartik V', skill: 'Welder', verified: true },
+  { name: 'Surajji', skill: 'Electrician', verified: true },
+  { name: 'Ajitji ', skill: 'Plumber', verified: true },
+  { name: 'worker1', skill: 'Mason', verified: true },
+  { name: 'worker2', skill: 'Painter', verified: true },
+  { name: 'worker3', skill: 'AC Technician', verified: true },
+  { name: 'worker4', skill: 'Welder', verified: true },
+  { name: 'worker11', skill: 'Welder', verified: true }
+]
+Login attempt for: surajs@gmail.com
+User found with role: worker
+Login successful for role: worker
