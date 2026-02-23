@@ -1,61 +1,133 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { ArrowLeft, Smartphone, MessageSquare } from 'lucide-react';
+import { ArrowLeft, Mail, Lock } from 'lucide-react';
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
-import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/app/components/ui/input-otp';
 import { useAuth } from '@/app/context/AuthContext';
 import { toast } from 'sonner';
 
 export function CustomerAuth() {
   const navigate = useNavigate();
   const { login } = useAuth();
-  const [step, setStep] = useState<'phone' | 'otp'>('phone');
-  const [phone, setPhone] = useState('');
+  const [step, setStep] = useState<'login' | 'register'>('login');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [name, setName] = useState('');
-  const [otp, setOtp] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSendOTP = () => {
+  const API_URL = 'http://localhost:5000/api/auth';
+
+  const handleLogin = async () => {
+    if (!email.trim()) {
+      toast.error('Please enter your email');
+      return;
+    }
+    if (!password.trim()) {
+      toast.error('Please enter your password');
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const response = await fetch(`${API_URL}/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        toast.error(data.message || 'Login failed');
+        return;
+      }
+
+      console.log('Login response:', data);
+      localStorage.setItem('token', data.token);
+      
+      // Use the role from backend response
+      const userRole = data.user.role;
+      
+      login({
+        id: data.user.id,
+        name: data.user.name,
+        email: data.user.email,
+        phone: '',
+        role: userRole,
+        skill: data.worker?.skill,
+        isVerified: data.worker?.isVerified,
+      });
+      
+      toast.success('Login successful!');
+      
+      // Role-based redirection
+      if (userRole === 'worker') {
+        navigate('/worker/dashboard');
+      } else if (userRole === 'customer') {
+        navigate('/workers');
+      } else if (userRole === 'admin') {
+        navigate('/admin/dashboard');
+      } else {
+        navigate('/workers');
+      }
+    } catch (error) {
+      toast.error('Failed to connect to server. Make sure backend is running.');
+      console.error('Error:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleRegister = async () => {
     if (!name.trim()) {
       toast.error('Please enter your name');
       return;
     }
-    if (phone.length !== 10) {
-      toast.error('Please enter a valid 10-digit phone number');
+    if (!email.trim()) {
+      toast.error('Please enter your email');
+      return;
+    }
+    if (!password.trim()) {
+      toast.error('Please enter your password');
+      return;
+    }
+    if (password.length < 6) {
+      toast.error('Password must be at least 6 characters');
       return;
     }
     setIsLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false);
-      setStep('otp');
-      toast.success('OTP sent to your phone');
-    }, 1000);
-  };
+    try {
+      const response = await fetch(`${API_URL}/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name, email, password, role: 'customer' }),
+      });
 
-  const handleVerifyOTP = () => {
-    if (otp.length !== 6) {
-      toast.error('Please enter complete OTP');
-      return;
-    }
-    setIsLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false);
+      const data = await response.json();
+
+      if (!response.ok) {
+        toast.error(data.message || 'Registration failed');
+        return;
+      }
+
+      localStorage.setItem('token', data.token);
       login({
-        id: 'C001',
-        name: name.trim(),
-        phone: `+91 ${phone}`,
+        id: data.user.id,
+        name: data.user.name,
+        phone: '',
         role: 'customer',
       });
-      toast.success('Login successful!');
+      toast.success('Registration successful!');
       navigate('/workers');
-    }, 1000);
-  };
-
-  const handleWhatsAppLogin = () => {
-    toast.info('WhatsApp login coming soon!');
+    } catch (error) {
+      toast.error('Failed to connect to server. Make sure backend is running.');
+      console.error('Error:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -83,20 +155,20 @@ export function CustomerAuth() {
           <div className="bg-white rounded-2xl shadow-xl p-8">
             <div className="text-center mb-8">
               <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-100 mb-4">
-                <Smartphone className="h-8 w-8 text-blue-600" />
+                <Mail className="h-8 w-8 text-blue-600" />
               </div>
               <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                {step === 'phone' ? 'Login to LabourHub' : 'Verify OTP'}
+                {step === 'login' ? 'Login to LabourHub' : 'Create Account'}
               </h2>
               <p className="text-gray-600">
-                {step === 'phone'
-                  ? 'Enter your mobile number to continue'
-                  : `Enter the 6-digit code sent to +91 ${phone}`}
+                {step === 'login'
+                  ? 'Enter your credentials to continue'
+                  : 'Sign up to get started'}
               </p>
             </div>
 
-            {step === 'phone' ? (
-              <div className="space-y-6">
+            <div className="space-y-6">
+              {step === 'register' && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Full Name
@@ -107,104 +179,69 @@ export function CustomerAuth() {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     className="w-full"
+                    disabled={isLoading}
                   />
                 </div>
+              )}
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Mobile Number
-                  </label>
-                  <div className="flex gap-2">
-                    <div className="flex items-center justify-center bg-gray-100 px-4 rounded-lg">
-                      <span className="text-gray-700 font-medium">+91</span>
-                    </div>
-                    <Input
-                      type="tel"
-                      placeholder="Enter 10-digit number"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                      className="flex-1"
-                      maxLength={10}
-                    />
-                  </div>
-                </div>
-
-                <Button
-                  onClick={handleSendOTP}
-                  disabled={isLoading}
-                  className="w-full"
-                  size="lg"
-                >
-                  {isLoading ? 'Sending...' : 'Send OTP'}
-                </Button>
-
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Email Address
+                </label>
                 <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-gray-300" />
-                  </div>
-                  <div className="relative flex justify-center text-sm">
-                    <span className="px-2 bg-white text-gray-500">OR</span>
-                  </div>
+                  <Mail className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                  <Input
+                    type="email"
+                    placeholder="Enter your email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full pl-10"
+                    disabled={isLoading}
+                  />
                 </div>
-
-                <Button
-                  onClick={handleWhatsAppLogin}
-                  variant="outline"
-                  className="w-full gap-2"
-                  size="lg"
-                >
-                  <MessageSquare className="h-5 w-5 text-green-600" />
-                  Login with WhatsApp
-                </Button>
               </div>
-            ) : (
-              <div className="space-y-6">
-                <div className="flex justify-center">
-                  <InputOTP
-                    maxLength={6}
-                    value={otp}
-                    onChange={(value) => setOtp(value)}
-                  >
-                    <InputOTPGroup>
-                      <InputOTPSlot index={0} />
-                      <InputOTPSlot index={1} />
-                      <InputOTPSlot index={2} />
-                      <InputOTPSlot index={3} />
-                      <InputOTPSlot index={4} />
-                      <InputOTPSlot index={5} />
-                    </InputOTPGroup>
-                  </InputOTP>
-                </div>
 
-                <Button
-                  onClick={handleVerifyOTP}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Password
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                  <Input
+                    type="password"
+                    placeholder="Enter your password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full pl-10"
+                    disabled={isLoading}
+                  />
+                </div>
+              </div>
+
+              <Button
+                onClick={step === 'login' ? handleLogin : handleRegister}
+                disabled={isLoading}
+                className="w-full"
+                size="lg"
+              >
+                {isLoading ? 'Loading...' : step === 'login' ? 'Login' : 'Register'}
+              </Button>
+
+              <div className="text-center">
+                <button
+                  onClick={() => {
+                    setStep(step === 'login' ? 'register' : 'login');
+                    setEmail('');
+                    setPassword('');
+                    setName('');
+                  }}
+                  className="text-sm text-blue-600 hover:underline"
                   disabled={isLoading}
-                  className="w-full"
-                  size="lg"
                 >
-                  {isLoading ? 'Verifying...' : 'Verify & Login'}
-                </Button>
-
-                <div className="text-center">
-                  <button
-                    onClick={() => {
-                      setStep('phone');
-                      setOtp('');
-                    }}
-                    className="text-sm text-blue-600 hover:underline"
-                  >
-                    Change phone number
-                  </button>
-                  <span className="mx-2 text-gray-400">|</span>
-                  <button
-                    onClick={handleSendOTP}
-                    className="text-sm text-blue-600 hover:underline"
-                  >
-                    Resend OTP
-                  </button>
-                </div>
+                  {step === 'login' ? "Don't have an account? Register" : 'Already have an account? Login'}
+                </button>
               </div>
-            )}
+            </div>
           </div>
 
           <p className="text-center text-sm text-gray-500 mt-6">

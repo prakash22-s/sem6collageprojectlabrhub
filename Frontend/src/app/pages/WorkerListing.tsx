@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { Search, Filter, MapPin, Star, Phone, CheckCircle2, ArrowLeft, User } from 'lucide-react';
 import { Button } from '@/app/components/ui/button';
@@ -7,18 +7,35 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/app/components/ui/badge';
 import { skills, type Worker } from '@/app/data/mockData';
 import { useAuth } from '@/app/context/AuthContext';
-import { useWorkers } from '@/app/context/WorkerContext';
 
 export function WorkerListing() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { approvedWorkers } = useWorkers();
+  const [workers, setWorkers] = useState<Worker[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSkill, setSelectedSkill] = useState('all');
   const [sortBy, setSortBy] = useState<'rating' | 'distance' | 'price'>('rating');
 
-  const filteredWorkers = approvedWorkers
-    .filter(worker => worker.isOnline) // Only show online workers
+  useEffect(() => {
+    fetchWorkers();
+  }, []);
+
+  const fetchWorkers = async () => {
+    try {
+      const response = await fetch('http://localhost:5000/api/workers');
+      const data = await response.json();
+      if (data.success) {
+        setWorkers(data.workers);
+      }
+    } catch (error) {
+      console.error('Failed to fetch workers:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredWorkers = workers
     .filter((worker) => {
       const matchesSearch = worker.name.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesSkill = selectedSkill === 'all' || worker.skill === selectedSkill;
@@ -26,7 +43,7 @@ export function WorkerListing() {
     })
     .sort((a, b) => {
       if (sortBy === 'rating') return b.rating - a.rating;
-      if (sortBy === 'distance') return a.distanceKm - b.distanceKm;
+      if (sortBy === 'distance') return (a.distanceKm || 0) - (b.distanceKm || 0);
       if (sortBy === 'price') return a.pricePerDay - b.pricePerDay;
       return 0;
     });
@@ -111,19 +128,23 @@ export function WorkerListing() {
       <div className="max-w-7xl mx-auto px-4 py-6 relative z-20">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-gray-900">
-            {filteredWorkers.length} Workers Found
+            {loading ? 'Loading...' : `${filteredWorkers.length} Workers Found`}
           </h2>
         </div>
 
         <div className="space-y-4">
-          {filteredWorkers.length === 0 ? (
+          {loading ? (
             <div className="bg-white rounded-lg shadow p-12 text-center">
-              <p className="text-gray-500 mb-2">No online workers available</p>
-              <p className="text-sm text-gray-400">Workers need admin approval and must be online to appear here</p>
+              <p className="text-gray-500">Loading workers...</p>
+            </div>
+          ) : filteredWorkers.length === 0 ? (
+            <div className="bg-white rounded-lg shadow p-12 text-center">
+              <p className="text-gray-500 mb-2">No verified workers available</p>
+              <p className="text-sm text-gray-400">Workers need admin approval to appear here</p>
             </div>
           ) : (
             filteredWorkers.map((worker) => (
-              <WorkerCard key={worker.id} worker={worker} />
+              <WorkerCard key={worker._id || worker.id} worker={worker} />
             ))
           )}
         </div>
@@ -140,13 +161,16 @@ function WorkerCard({ worker }: { worker: Worker }) {
       <div className="flex gap-4">
         {/* Profile Image */}
         <div className="relative">
-          <img
-            src={worker.image}
-            alt={worker.name}
-            className="w-20 h-20 rounded-lg object-cover"
-          />
-          {worker.isOnline && (
-            <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white" />
+          {worker.image && worker.image !== '' ? (
+            <img
+              src={worker.image}
+              alt={worker.name}
+              className="w-20 h-20 rounded-lg object-cover"
+            />
+          ) : (
+            <div className="w-20 h-20 rounded-lg bg-gray-200 flex items-center justify-center">
+              <User className="h-10 w-10 text-gray-500" />
+            </div>
           )}
         </div>
 
@@ -191,7 +215,7 @@ function WorkerCard({ worker }: { worker: Worker }) {
               </Button>
               <Button
                 size="sm"
-                onClick={() => navigate(`/hire/${worker.id}`)}
+                onClick={() => navigate(`/book/${worker._id || worker.id}`)}
               >
                 Hire Now
               </Button>

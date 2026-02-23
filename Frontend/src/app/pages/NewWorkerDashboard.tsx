@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { 
   User, LogOut, Edit, Phone, MessageCircle, MapPin, Clock, 
@@ -24,7 +24,7 @@ const mockWorkerData = {
   totalReviews: 156,
   experience: 8,
   phone: '+91 98765 43210',
-  image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d',
+  image: '',
   isVerified: true,
   isOnline: true,
   completedJobs: 156,
@@ -32,44 +32,6 @@ const mockWorkerData = {
   languages: ['Hindi', 'English'],
   address: 'Saket, New Delhi',
 };
-
-const mockAvailableJobs = [
-  {
-    id: 'J001',
-    title: 'Electrical Wiring Repair',
-    customer: 'Priya Sharma',
-    location: 'Vasant Vihar, Delhi',
-    distance: 2.3,
-    pay: 1200,
-    duration: '4-6 hours',
-    description: 'Need to fix electrical wiring in kitchen and living room',
-    urgency: 'Today',
-  },
-  {
-    id: 'J002',
-    title: 'Fan Installation',
-    customer: 'Amit Gupta',
-    location: 'Malviya Nagar, Delhi',
-    distance: 3.1,
-    pay: 800,
-    duration: '2-3 hours',
-    description: 'Install 3 ceiling fans in new apartment',
-    urgency: 'Tomorrow',
-  },
-];
-
-const mockActiveJobs = [
-  {
-    id: 'AJ001',
-    title: 'Switch Board Replacement',
-    customer: 'Neha Patel',
-    phone: '+91 98765 43211',
-    location: 'Green Park, Delhi',
-    pay: 1500,
-    startTime: '10:00 AM',
-    status: 'In Progress',
-  },
-];
 
 const mockEarnings = {
   today: 2800,
@@ -128,10 +90,69 @@ export function NewWorkerDashboard() {
   const { user, logout } = useAuth();
   const { workers, updateWorkerStatus } = useWorkers();
   const [activeTab, setActiveTab] = useState('available');
+  const [bookings, setBookings] = useState<any[]>([]);
+  const [workerProfile, setWorkerProfile] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [notificationCount, setNotificationCount] = useState(0);
+  const [previousPendingCount, setPreviousPendingCount] = useState(0);
 
   // Find the current worker's data
   const currentWorker = workers.find(w => w.id === user?.id);
   const [isOnline, setIsOnline] = useState(currentWorker?.isOnline || false);
+
+  useEffect(() => {
+    if (user?.id) {
+      fetchWorkerProfile();
+      fetchBookings();
+      
+      // Auto-refresh bookings every 10 seconds for real-time notifications
+      const interval = setInterval(() => {
+        fetchBookings();
+      }, 10000);
+      
+      return () => clearInterval(interval);
+    }
+  }, [user]);
+
+  const fetchWorkerProfile = async () => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/workers/user/${user.id}`);
+      const data = await response.json();
+      if (data.success) {
+        setWorkerProfile(data.worker);
+        setIsOnline(data.worker.isOnline);
+      }
+    } catch (error) {
+      console.error('Failed to fetch worker profile:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchBookings = async () => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/bookings/worker/${user.id}`);
+      const data = await response.json();
+      if (data.success) {
+        setBookings(data.bookings);
+        // Count pending bookings for notification badge
+        const pendingCount = data.bookings.filter(b => b.status === 'pending').length;
+        
+        // Show notification if new pending bookings arrived
+        if (pendingCount > previousPendingCount && previousPendingCount > 0) {
+          const newBookingsCount = pendingCount - previousPendingCount;
+          toast.success(`🔔 ${newBookingsCount} New Job Request${newBookingsCount > 1 ? 's' : ''}!`, {
+            duration: 5000,
+          });
+        }
+        
+        setNotificationCount(pendingCount);
+        setPreviousPendingCount(pendingCount);
+      }
+    } catch (error) {
+      console.error('Failed to fetch bookings:', error);
+    }
+  };
 
   // Redirect if not logged in as worker
   if (!user || user.role !== 'worker') {
@@ -139,8 +160,8 @@ export function NewWorkerDashboard() {
     return null;
   }
 
-  // Use current worker data or fallback to user data
-  const workerData = currentWorker || {
+  // Use worker profile data or fallback
+  const workerData = workerProfile || currentWorker || {
     id: user.id,
     name: user.name,
     skill: user.skill || 'Worker',
@@ -148,7 +169,7 @@ export function NewWorkerDashboard() {
     totalReviews: 0,
     experience: 0,
     phone: user.phone,
-    image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d',
+    image: '',
     isVerified: user.isVerified || false,
     isOnline: false,
     completedJobs: 0,
@@ -157,23 +178,76 @@ export function NewWorkerDashboard() {
     address: 'Not provided',
   };
 
+  const pendingBookings = bookings.filter(b => b.status === 'pending');
+  const activeBookings = bookings.filter(b => b.status === 'confirmed');
+  const completedBookings = bookings.filter(b => b.status === 'completed');
+
   const handleLogout = () => {
     logout();
     navigate('/');
   };
 
-  const handleAvailabilityToggle = (checked: boolean) => {
+  const handleAvailabilityToggle = async (checked: boolean) => {
     if (!workerData.isVerified) {
       toast.error('Please wait for admin approval to go online');
       return;
     }
-    setIsOnline(checked);
-    updateWorkerStatus(workerData.id, checked);
-    toast.success(checked ? 'You are now online and can receive jobs' : 'You are now offline');
+    
+    try {
+      const response = await fetch(`http://localhost:5000/api/workers/${workerProfile._id}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isOnline: checked }),
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        setIsOnline(checked);
+        updateWorkerStatus(workerData.id, checked);
+        toast.success(checked ? 'You are now online and can receive jobs' : 'You are now offline');
+      }
+    } catch (error) {
+      console.error('Status update error:', error);
+      toast.error('Failed to update status');
+    }
   };
 
-  const handleAcceptJob = (jobId: string) => {
-    toast.success('Job accepted successfully!');
+  const handleAcceptJob = async (bookingId: string) => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/bookings/${bookingId}/accept`, {
+        method: 'PUT',
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        toast.success('Job accepted successfully!');
+        fetchBookings(); // Refresh bookings
+      } else {
+        toast.error(data.message || 'Failed to accept job');
+      }
+    } catch (error) {
+      console.error('Accept job error:', error);
+      toast.error('Failed to accept job');
+    }
+  };
+
+  const handleRejectJob = async (bookingId: string) => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/bookings/${bookingId}/reject`, {
+        method: 'PUT',
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        toast.success('Job rejected');
+        fetchBookings(); // Refresh bookings
+      } else {
+        toast.error(data.message || 'Failed to reject job');
+      }
+    } catch (error) {
+      console.error('Reject job error:', error);
+      toast.error('Failed to reject job');
+    }
   };
 
   const handleCall = (phone: string) => {
@@ -193,7 +267,17 @@ export function NewWorkerDashboard() {
       <header className="bg-white/98 backdrop-blur-sm shadow-sm sticky top-0 z-20">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <h1 className="text-xl font-bold text-gray-900">Worker Dashboard</h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-xl font-bold text-gray-900">Worker Dashboard</h1>
+              {notificationCount > 0 && (
+                <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-full px-3 py-1 animate-pulse">
+                  <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                  <span className="text-sm font-medium text-red-700">
+                    {notificationCount} New Request{notificationCount > 1 ? 's' : ''}
+                  </span>
+                </div>
+              )}
+            </div>
             <div className="flex items-center gap-4">
               {/* Availability Toggle */}
               <div className="flex items-center gap-2">
@@ -230,11 +314,17 @@ export function NewWorkerDashboard() {
               <CardContent className="p-6">
                 <div className="text-center mb-4">
                   <div className="relative inline-block">
-                    <img
-                      src={workerData.image}
-                      alt={workerData.name}
-                      className="w-20 h-20 rounded-full object-cover mx-auto mb-3"
-                    />
+                    {workerData.image && workerData.image !== '' ? (
+                      <img
+                        src={workerData.image}
+                        alt={workerData.name}
+                        className="w-20 h-20 rounded-full object-cover mx-auto mb-3"
+                      />
+                    ) : (
+                      <div className="w-20 h-20 rounded-full bg-gray-200 flex items-center justify-center mx-auto mb-3">
+                        <User className="h-10 w-10 text-gray-500" />
+                      </div>
+                    )}
                     {isOnline && workerData.isVerified && (
                       <div className="absolute -top-1 -right-1 w-6 h-6 bg-green-500 rounded-full border-2 border-white" />
                     )}
@@ -297,7 +387,14 @@ export function NewWorkerDashboard() {
             
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               <TabsList className="grid w-full grid-cols-5">
-                <TabsTrigger value="available">Available Jobs</TabsTrigger>
+                <TabsTrigger value="available" className="relative">
+                  Available Jobs
+                  {notificationCount > 0 && (
+                    <Badge className="ml-2 bg-red-500 text-white px-2 py-0 text-xs">
+                      {notificationCount}
+                    </Badge>
+                  )}
+                </TabsTrigger>
                 <TabsTrigger value="active">Active Jobs</TabsTrigger>
                 <TabsTrigger value="earnings">Earnings</TabsTrigger>
                 <TabsTrigger value="reviews">Reviews</TabsTrigger>
@@ -307,10 +404,17 @@ export function NewWorkerDashboard() {
               {/* Available Jobs Tab */}
               <TabsContent value="available" className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-semibold">Nearby Job Opportunities</h2>
-                  <Badge variant="outline">
-                    {workerData.isVerified ? `${mockAvailableJobs.length} jobs available` : 'Pending verification'}
-                  </Badge>
+                  <h2 className="text-lg font-semibold">Pending Job Requests</h2>
+                  <div className="flex items-center gap-2">
+                    {notificationCount > 0 && (
+                      <Badge variant="destructive" className="animate-pulse">
+                        {notificationCount} New Request{notificationCount > 1 ? 's' : ''}
+                      </Badge>
+                    )}
+                    <Badge variant="outline">
+                      {workerData.isVerified ? `${pendingBookings.length} total` : 'Pending verification'}
+                    </Badge>
+                  </div>
                 </div>
                 {!workerData.isVerified ? (
                   <Card>
@@ -320,35 +424,58 @@ export function NewWorkerDashboard() {
                       <p className="text-gray-600">Your account is being reviewed by our admin team. You'll be able to see and accept jobs once verified.</p>
                     </CardContent>
                   </Card>
+                ) : pendingBookings.length === 0 ? (
+                  <Card>
+                    <CardContent className="p-8 text-center">
+                      <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-600">No pending job requests</p>
+                      <p className="text-sm text-gray-500 mt-2">New booking requests will appear here</p>
+                    </CardContent>
+                  </Card>
                 ) : (
-                  mockAvailableJobs.map((job) => (
-                    <Card key={job.id}>
+                  pendingBookings.map((booking) => (
+                    <Card key={booking._id} className="border-l-4 border-l-blue-500">
                       <CardContent className="p-4">
                         <div className="flex justify-between items-start mb-3">
                           <div>
-                            <h3 className="font-semibold text-gray-900">{job.title}</h3>
-                            <p className="text-sm text-gray-600">{job.customer}</p>
-                          </div>
-                          <Badge variant={job.urgency === 'Today' ? 'destructive' : 'secondary'}>
-                            {job.urgency}
-                          </Badge>
-                        </div>
-                        <div className="grid grid-cols-2 gap-4 mb-3 text-sm">
-                          <div className="flex items-center gap-1">
-                            <MapPin className="h-4 w-4 text-gray-400" />
-                            <span>{job.location} ({job.distance} km)</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Clock className="h-4 w-4 text-gray-400" />
-                            <span>{job.duration}</span>
+                            <div className="flex items-center gap-2">
+                              <h3 className="font-semibold text-gray-900">{booking.customerName}</h3>
+                              <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300">
+                                New Request
+                              </Badge>
+                            </div>
+                            <p className="text-sm text-gray-600">{booking.workerSkill}</p>
                           </div>
                         </div>
-                        <p className="text-sm text-gray-600 mb-3">{job.description}</p>
-                        <div className="flex items-center justify-between">
-                          <div className="text-lg font-bold text-green-600">₹{job.pay}</div>
-                          <Button onClick={() => handleAcceptJob(job.id)} size="sm">
-                            Accept Job
-                          </Button>
+                        <div className="space-y-2 mb-4 text-sm">
+                          <div className="flex items-center gap-2">
+                            <Calendar className="h-4 w-4 text-gray-400" />
+                            <span className="font-medium">{booking.date}</span>
+                          </div>
+                          <div className="flex items-start gap-2">
+                            <MapPin className="h-4 w-4 text-gray-400 mt-0.5" />
+                            <span className="text-gray-700">{booking.address}</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between pt-3 border-t">
+                          <div className="text-lg font-bold text-green-600">₹{booking.amount}</div>
+                          <div className="flex gap-2">
+                            <Button 
+                              onClick={() => handleRejectJob(booking._id)} 
+                              size="sm"
+                              variant="outline"
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            >
+                              Reject
+                            </Button>
+                            <Button 
+                              onClick={() => handleAcceptJob(booking._id)} 
+                              size="sm"
+                              className="bg-green-600 hover:bg-green-700"
+                            >
+                              Accept Job
+                            </Button>
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
@@ -359,46 +486,34 @@ export function NewWorkerDashboard() {
               {/* Active Jobs Tab */}
               <TabsContent value="active" className="space-y-4">
                 <h2 className="text-lg font-semibold">Current Active Jobs</h2>
-                {mockActiveJobs.map((job) => (
-                  <Card key={job.id}>
-                    <CardContent className="p-4">
-                      <div className="flex justify-between items-start mb-3">
-                        <div>
-                          <h3 className="font-semibold text-gray-900">{job.title}</h3>
-                          <p className="text-sm text-gray-600">{job.customer}</p>
-                          <p className="text-sm text-gray-500">{job.location}</p>
-                        </div>
-                        <Badge variant="default">{job.status}</Badge>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm text-gray-600">Started: {job.startTime}</p>
-                          <p className="text-lg font-bold text-green-600">₹{job.pay}</p>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleCall(job.phone)}
-                            className="gap-1"
-                          >
-                            <Phone className="h-4 w-4" />
-                            Call
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleWhatsApp(job.phone)}
-                            className="gap-1"
-                          >
-                            <MessageCircle className="h-4 w-4" />
-                            WhatsApp
-                          </Button>
-                        </div>
-                      </div>
+                {activeBookings.length === 0 ? (
+                  <Card>
+                    <CardContent className="p-8 text-center">
+                      <p className="text-gray-600">No active jobs</p>
                     </CardContent>
                   </Card>
-                ))}
+                ) : (
+                  activeBookings.map((booking) => (
+                    <Card key={booking._id}>
+                      <CardContent className="p-4">
+                        <div className="flex justify-between items-start mb-3">
+                          <div>
+                            <h3 className="font-semibold text-gray-900">{booking.customerName}</h3>
+                            <p className="text-sm text-gray-600">{booking.workerSkill}</p>
+                            <p className="text-sm text-gray-500">{booking.address}</p>
+                          </div>
+                          <Badge variant="default">In Progress</Badge>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm text-gray-600">Date: {booking.date}</p>
+                            <p className="text-lg font-bold text-green-600">₹{booking.amount}</p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))
+                )}
               </TabsContent>
 
               {/* Earnings Tab */}

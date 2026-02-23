@@ -18,6 +18,8 @@ export function WorkerOnboarding() {
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     name: '',
+    email: '',
+    password: '',
     phone: '',
     skill: '',
     experience: '',
@@ -27,54 +29,114 @@ export function WorkerOnboarding() {
     photo: null as File | null,
   });
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     // Validate all fields
-    if (!formData.name || !formData.phone || !formData.skill || !formData.experience || !formData.pricePerDay || !formData.address) {
+    if (!formData.name || !formData.email || !formData.password || !formData.phone || !formData.skill || !formData.experience || !formData.pricePerDay || !formData.address) {
       toast.error('Please fill all required fields');
       return;
     }
 
-    // Create worker object
-    const newWorker = {
-      id: `W${Date.now()}`,
-      name: formData.name,
-      skill: formData.skill,
-      rating: 0,
-      experience: parseInt(formData.experience),
-      distanceKm: 0,
-      phone: `+91 ${formData.phone}`,
-      isVerified: false,
-      isOnline: false,
-      pricePerDay: parseInt(formData.pricePerDay),
-      image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d',
-      completedJobs: 0,
-      languages: ['Hindi'],
-      address: formData.address,
-      aadhaarVerified: false,
-      policeVerified: false,
-    };
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      toast.error('Please enter a valid email address');
+      return;
+    }
 
-    console.log('Adding worker:', newWorker);
-    
-    // Add worker to pending list
-    addWorker(newWorker);
-    
-    // Log in the worker
-    login({
-      id: newWorker.id,
-      name: newWorker.name,
-      phone: newWorker.phone,
-      role: 'worker',
-      skill: newWorker.skill,
-      isVerified: newWorker.isVerified,
-    });
-    
-    toast.success('Registration successful! Redirecting to your dashboard...');
-    
-    // Redirect to worker dashboard
-    setTimeout(() => {
-      navigate('/worker/dashboard');
-    }, 1500);
+    // Password validation
+    if (formData.password.length < 6) {
+      toast.error('Password must be at least 6 characters long');
+      return;
+    }
+
+    try {
+      const payload = {
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+        phone: formData.phone,
+        skill: formData.skill,
+        experience: parseInt(formData.experience),
+        pricePerDay: parseInt(formData.pricePerDay),
+        address: formData.address,
+        aadhaar: formData.aadhaar || '',
+      };
+
+      console.log('Sending registration request:', { ...payload, password: '***' });
+
+      // Register worker via API
+      const response = await fetch('http://localhost:5000/api/workers/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      console.log('Response status:', response.status);
+      console.log('Response headers:', response.headers);
+
+      // Check if response is JSON
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        console.error('Non-JSON response:', text);
+        toast.error('Server returned invalid response. Please check if backend is running.');
+        return;
+      }
+
+      const data = await response.json();
+      console.log('Response data:', data);
+
+      if (!response.ok) {
+        toast.error(data.message || 'Registration failed');
+        return;
+      }
+
+      // Login the worker
+      console.log('Attempting worker login...');
+      const loginResponse = await fetch('http://localhost:5000/api/auth/worker/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+        }),
+      });
+
+      const loginData = await loginResponse.json();
+      console.log('Login response:', loginData);
+
+      if (loginResponse.ok) {
+        // Store token
+        localStorage.setItem('token', loginData.token);
+        
+        // Log in the worker using context
+        login({
+          id: loginData.user.id,
+          name: loginData.user.name,
+          email: loginData.user.email,
+          phone: formData.phone,
+          role: 'worker',
+          skill: formData.skill,
+          isVerified: loginData.worker?.isVerified || false,
+        });
+
+        toast.success('Registration successful! Redirecting to your dashboard...');
+
+        // Redirect to worker dashboard
+        setTimeout(() => {
+          navigate('/worker/dashboard');
+        }, 1500);
+      } else {
+        toast.error(loginData.message || 'Login failed after registration');
+      }
+    } catch (error) {
+      console.error('Registration error:', error);
+      toast.error('Failed to connect to server. Please ensure backend is running on http://localhost:5000');
+    }
   };
 
   const updateField = (field: string, value: string) => {
@@ -159,6 +221,34 @@ export function WorkerOnboarding() {
                   value={formData.name}
                   onChange={(e) => updateField('name', e.target.value)}
                 />
+              </div>
+
+              <div>
+                <Label htmlFor="email">Email Address *</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="Enter your email"
+                  value={formData.email}
+                  onChange={(e) => updateField('email', e.target.value)}
+                />
+                <p className="text-sm text-gray-500 mt-1">
+                  You'll use this email to login
+                </p>
+              </div>
+
+              <div>
+                <Label htmlFor="password">Password *</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="Create a strong password"
+                  value={formData.password}
+                  onChange={(e) => updateField('password', e.target.value)}
+                />
+                <p className="text-sm text-gray-500 mt-1">
+                  Minimum 6 characters
+                </p>
               </div>
 
               <div>

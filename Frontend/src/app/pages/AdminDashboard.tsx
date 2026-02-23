@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router';
-import { Users, Briefcase, TrendingUp, Shield, LogOut, CheckCircle2, Clock } from 'lucide-react';
+import { Users, Briefcase, TrendingUp, Shield, LogOut, CheckCircle2, Clock, User } from 'lucide-react';
 import { Button } from '@/app/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { Badge } from '@/app/components/ui/badge';
@@ -150,11 +150,17 @@ export function AdminDashboard() {
               <div className="space-y-3">
                 {recentWorkers.map((worker) => (
                   <div key={worker.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                    <img
-                      src={worker.image}
-                      alt={worker.name}
-                      className="w-12 h-12 rounded-lg object-cover"
-                    />
+                    {worker.image && worker.image !== '' ? (
+                      <img
+                        src={worker.image}
+                        alt={worker.name}
+                        className="w-12 h-12 rounded-lg object-cover"
+                      />
+                    ) : (
+                      <div className="w-12 h-12 rounded-lg bg-gray-200 flex items-center justify-center">
+                        <User className="h-6 w-6 text-gray-500" />
+                      </div>
+                    )}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <p className="font-semibold text-gray-900 truncate">{worker.name}</p>

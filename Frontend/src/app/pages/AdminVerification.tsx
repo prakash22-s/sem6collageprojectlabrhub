@@ -1,29 +1,77 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
-import { ArrowLeft, CheckCircle2, XCircle, Eye } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, XCircle, Eye, User } from 'lucide-react';
 import { Button } from '@/app/components/ui/button';
 import { Badge } from '@/app/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/app/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/app/components/ui/dialog';
-import { useWorkers } from '@/app/context/WorkerContext';
 import { toast } from 'sonner';
 
 export function AdminVerification() {
   const navigate = useNavigate();
-  const { pendingWorkers, approvedWorkers, approveWorker, rejectWorker } = useWorkers();
-  const [selectedWorker, setSelectedWorker] = useState<typeof pendingWorkers[0] | null>(null);
+  const [workers, setWorkers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedWorker, setSelectedWorker] = useState<any | null>(null);
+
+  const pendingWorkers = workers.filter(w => !w.isVerified);
+  const approvedWorkers = workers.filter(w => w.isVerified);
+
+  useEffect(() => {
+    fetchWorkers();
+  }, []);
+
+  const fetchWorkers = async () => {
+    try {
+      const response = await fetch('http://localhost:5000/api/workers/all');
+      const data = await response.json();
+      if (data.success) {
+        setWorkers(data.workers);
+      }
+    } catch (error) {
+      console.error('Failed to fetch workers:', error);
+      toast.error('Failed to load workers');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   console.log('AdminVerification: Pending workers', pendingWorkers);
   console.log('AdminVerification: Approved workers', approvedWorkers);
 
-  const handleApprove = (workerId: string) => {
-    approveWorker(workerId);
-    toast.success('Worker approved successfully');
+  const handleApprove = async (workerId: string) => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/workers/${workerId}/approve`, {
+        method: 'PUT',
+      });
+      const data = await response.json();
+      if (data.success) {
+        toast.success('Worker approved successfully');
+        fetchWorkers();
+      } else {
+        toast.error(data.message || 'Failed to approve worker');
+      }
+    } catch (error) {
+      console.error('Approve error:', error);
+      toast.error('Failed to approve worker');
+    }
   };
 
-  const handleReject = (workerId: string) => {
-    rejectWorker(workerId);
-    toast.error('Worker application rejected');
+  const handleReject = async (workerId: string) => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/workers/${workerId}/reject`, {
+        method: 'DELETE',
+      });
+      const data = await response.json();
+      if (data.success) {
+        toast.error('Worker application rejected');
+        fetchWorkers();
+      } else {
+        toast.error(data.message || 'Failed to reject worker');
+      }
+    } catch (error) {
+      console.error('Reject error:', error);
+      toast.error('Failed to reject worker');
+    }
   };
 
   return (
@@ -42,50 +90,56 @@ export function AdminVerification() {
       </header>
 
       <div className="max-w-7xl mx-auto px-4 py-6">
-        <Tabs defaultValue="pending">
-          <TabsList className="w-full max-w-md mx-auto">
-            <TabsTrigger value="pending" className="flex-1">
-              Pending ({pendingWorkers.length})
-            </TabsTrigger>
-            <TabsTrigger value="verified" className="flex-1">
-              Verified ({approvedWorkers.length})
-            </TabsTrigger>
-          </TabsList>
+        {loading ? (
+          <div className="bg-white rounded-lg shadow p-8 text-center">
+            <p className="text-gray-500">Loading workers...</p>
+          </div>
+        ) : (
+          <Tabs defaultValue="pending">
+            <TabsList className="w-full max-w-md mx-auto">
+              <TabsTrigger value="pending" className="flex-1">
+                Pending ({pendingWorkers.length})
+              </TabsTrigger>
+              <TabsTrigger value="verified" className="flex-1">
+                Verified ({approvedWorkers.length})
+              </TabsTrigger>
+            </TabsList>
 
-          <TabsContent value="pending" className="mt-6">
-            {pendingWorkers.length === 0 ? (
-              <div className="bg-white rounded-lg shadow p-8 text-center">
-                <p className="text-gray-500">No pending workers for verification</p>
-              </div>
-            ) : (
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {pendingWorkers.map((worker) => (
-                  <WorkerVerificationCard
-                    key={worker.id}
-                    worker={worker}
-                    onApprove={handleApprove}
-                    onReject={handleReject}
-                    onViewDetails={setSelectedWorker}
-                  />
-                ))}
-              </div>
-            )}
-          </TabsContent>
+            <TabsContent value="pending" className="mt-6">
+              {pendingWorkers.length === 0 ? (
+                <div className="bg-white rounded-lg shadow p-8 text-center">
+                  <p className="text-gray-500">No pending workers for verification</p>
+                </div>
+              ) : (
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {pendingWorkers.map((worker) => (
+                    <WorkerVerificationCard
+                      key={worker._id || worker.id}
+                      worker={worker}
+                      onApprove={handleApprove}
+                      onReject={handleReject}
+                      onViewDetails={setSelectedWorker}
+                    />
+                  ))}
+                </div>
+              )}
+            </TabsContent>
 
-          <TabsContent value="verified" className="mt-6">
-            {approvedWorkers.length === 0 ? (
-              <div className="bg-white rounded-lg shadow p-8 text-center">
-                <p className="text-gray-500">No verified workers yet</p>
-              </div>
-            ) : (
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {approvedWorkers.map((worker) => (
-                  <VerifiedWorkerCard key={worker.id} worker={worker} />
-                ))}
-              </div>
-            )}
-          </TabsContent>
-        </Tabs>
+            <TabsContent value="verified" className="mt-6">
+              {approvedWorkers.length === 0 ? (
+                <div className="bg-white rounded-lg shadow p-8 text-center">
+                  <p className="text-gray-500">No verified workers yet</p>
+                </div>
+              ) : (
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {approvedWorkers.map((worker) => (
+                    <VerifiedWorkerCard key={worker._id || worker.id} worker={worker} />
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
+        )}
 
         {/* Worker Details Dialog */}
         {selectedWorker && (
@@ -96,7 +150,13 @@ export function AdminVerification() {
               </DialogHeader>
               <div className="space-y-4">
                 <div className="flex gap-4">
-                  <img src={selectedWorker.image} alt={selectedWorker.name} className="w-24 h-24 rounded-lg object-cover" />
+                  {selectedWorker.image && selectedWorker.image !== '' ? (
+                    <img src={selectedWorker.image} alt={selectedWorker.name} className="w-24 h-24 rounded-lg object-cover" />
+                  ) : (
+                    <div className="w-24 h-24 rounded-lg bg-gray-200 flex items-center justify-center">
+                      <User className="h-12 w-12 text-gray-500" />
+                    </div>
+                  )}
                   <div>
                     <h3 className="font-bold text-lg">{selectedWorker.name}</h3>
                     <p className="text-gray-600">{selectedWorker.skill}</p>
@@ -118,14 +178,14 @@ export function AdminVerification() {
                   </div>
                   <div>
                     <p className="text-sm text-gray-500">Languages</p>
-                    <p className="font-semibold">{selectedWorker.languages.join(', ')}</p>
+                    <p className="font-semibold">{selectedWorker.languages?.join(', ') || 'N/A'}</p>
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <Button onClick={() => { handleApprove(selectedWorker.id); setSelectedWorker(null); }} className="flex-1">
+                  <Button onClick={() => { handleApprove(selectedWorker.id || selectedWorker._id); setSelectedWorker(null); }} className="flex-1">
                     Approve
                   </Button>
-                  <Button variant="destructive" onClick={() => { handleReject(selectedWorker.id); setSelectedWorker(null); }} className="flex-1">
+                  <Button variant="destructive" onClick={() => { handleReject(selectedWorker.id || selectedWorker._id); setSelectedWorker(null); }} className="flex-1">
                     Reject
                   </Button>
                 </div>
@@ -139,10 +199,17 @@ export function AdminVerification() {
 }
 
 function WorkerVerificationCard({ worker, onApprove, onReject, onViewDetails }: any) {
+  const workerId = worker._id || worker.id;
   return (
     <div className="bg-white rounded-lg shadow p-4">
       <div className="flex gap-3 mb-3">
-        <img src={worker.image} alt={worker.name} className="w-16 h-16 rounded-lg object-cover" />
+        {worker.image && worker.image !== '' ? (
+          <img src={worker.image} alt={worker.name} className="w-16 h-16 rounded-lg object-cover" />
+        ) : (
+          <div className="w-16 h-16 rounded-lg bg-gray-200 flex items-center justify-center">
+            <User className="h-8 w-8 text-gray-500" />
+          </div>
+        )}
         <div className="flex-1 min-w-0">
           <h3 className="font-semibold text-gray-900 truncate">{worker.name}</h3>
           <p className="text-sm text-gray-600">{worker.skill}</p>
@@ -166,11 +233,11 @@ function WorkerVerificationCard({ worker, onApprove, onReject, onViewDetails }: 
           <Eye className="h-4 w-4" />
           View
         </Button>
-        <Button size="sm" onClick={() => onApprove(worker.id)} className="flex-1 gap-1">
+        <Button size="sm" onClick={() => onApprove(workerId)} className="flex-1 gap-1">
           <CheckCircle2 className="h-4 w-4" />
           Approve
         </Button>
-        <Button size="sm" variant="destructive" onClick={() => onReject(worker.id)} className="gap-1">
+        <Button size="sm" variant="destructive" onClick={() => onReject(workerId)} className="gap-1">
           <XCircle className="h-4 w-4" />
         </Button>
       </div>
@@ -182,7 +249,13 @@ function VerifiedWorkerCard({ worker }: any) {
   return (
     <div className="bg-white rounded-lg shadow p-4">
       <div className="flex gap-3 mb-3">
-        <img src={worker.image} alt={worker.name} className="w-16 h-16 rounded-lg object-cover" />
+        {worker.image && worker.image !== '' ? (
+          <img src={worker.image} alt={worker.name} className="w-16 h-16 rounded-lg object-cover" />
+        ) : (
+          <div className="w-16 h-16 rounded-lg bg-gray-200 flex items-center justify-center">
+            <User className="h-8 w-8 text-gray-500" />
+          </div>
+        )}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <h3 className="font-semibold text-gray-900 truncate">{worker.name}</h3>

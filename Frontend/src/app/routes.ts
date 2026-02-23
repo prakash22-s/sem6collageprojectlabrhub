@@ -5,6 +5,7 @@ import { WorkerOnboarding } from '@/app/pages/WorkerOnboarding';
 import { WorkerListing } from '@/app/pages/WorkerListing';
 import { WorkerProfile } from '@/app/pages/WorkerProfile';
 import { HireWorker } from '@/app/pages/HireWorker';
+import { BookingPage } from '@/app/pages/BookingPage';
 import { CustomerDashboard } from '@/app/pages/CustomerDashboard';
 import { RatingFeedback } from '@/app/pages/RatingFeedback';
 import { NewWorkerDashboard } from '@/app/pages/NewWorkerDashboard';
@@ -36,6 +37,10 @@ export const router = createBrowserRouter([
   {
     path: '/hire/:id',
     Component: HireWorker,
+  },
+  {
+    path: '/book/:workerId',
+    Component: BookingPage,
   },
   {
     path: '/customer/dashboard',
