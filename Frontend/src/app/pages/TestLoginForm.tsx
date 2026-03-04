@@ -3,8 +3,10 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Alert, AlertDescription } from '../components/ui/alert';
+import { apiUrl } from '../lib/api';
 
 const TestLoginForm = () => {
+  type DemoUser = { name: string; email: string; role: string };
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -12,11 +14,11 @@ const TestLoginForm = () => {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState<DemoUser | null>(null);
 
-  const API_URL = 'http://localhost:5000/api/auth';
+  const API_URL = apiUrl('/api/auth');
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
     setMessage('');
@@ -44,7 +46,7 @@ const TestLoginForm = () => {
       }
 
       setMessage(`${isLogin ? 'Login' : 'Registration'} successful!`);
-      setUser(data.user);
+      setUser(data.user as DemoUser);
       localStorage.setItem('token', data.token);
 
       // Reset form
@@ -52,7 +54,7 @@ const TestLoginForm = () => {
       setPassword('');
       setName('');
     } catch (err) {
-      setError('Failed to connect to server. Make sure the backend is running on http://localhost:5000');
+      setError('Failed to connect to server. Make sure the backend is running.');
       console.error('Error:', err);
     } finally {
       setLoading(false);

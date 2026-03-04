@@ -3,9 +3,11 @@ import React, { createContext, useContext, useState, ReactNode } from 'react';
 interface User {
   id: string;
   name: string;
-  phone: string;
+  phone?: string;
+  email?: string;
   role: 'customer' | 'worker' | 'admin';
   skill?: string;
+  isVerified?: boolean;
 }
 
 interface AuthContextType {

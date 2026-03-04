@@ -8,6 +8,7 @@ import { Textarea } from '@/app/components/ui/textarea';
 import { Card, CardContent } from '@/app/components/ui/card';
 import { useAuth } from '@/app/context/AuthContext';
 import { toast } from 'sonner';
+import { apiUrl } from '@/app/lib/api';
 
 export function BookingPage() {
   const { workerId } = useParams();
@@ -21,9 +22,10 @@ export function BookingPage() {
     address: '',
     description: '',
   });
+  const currentUser = user && user.role === 'customer' ? user : null;
 
   useEffect(() => {
-    if (!user || user.role !== 'customer') {
+    if (!currentUser) {
       navigate('/auth');
       return;
     }
@@ -32,7 +34,7 @@ export function BookingPage() {
 
   const fetchWorker = async () => {
     try {
-      const response = await fetch(`http://localhost:5000/api/workers/${workerId}`);
+      const response = await fetch(apiUrl(`/api/workers/${workerId}`));
       const data = await response.json();
       if (data.success) {
         setWorker(data.worker);
@@ -52,13 +54,17 @@ export function BookingPage() {
       toast.error('Please fill all required fields');
       return;
     }
+    if (!currentUser) {
+      toast.error('Please login as customer');
+      return;
+    }
 
     setSubmitting(true);
     try {
       const booking = {
-        customerId: user.id,
+        customerId: currentUser.id,
         workerId: worker._id,
-        customerName: user.name,
+        customerName: currentUser.name,
         workerName: worker.name,
         workerSkill: worker.skill,
         date: formData.date,
@@ -67,7 +73,7 @@ export function BookingPage() {
         status: 'pending',
       };
 
-      const response = await fetch('http://localhost:5000/api/bookings', {
+      const response = await fetch(apiUrl('/api/bookings'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(booking),

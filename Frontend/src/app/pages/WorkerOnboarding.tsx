@@ -1,22 +1,55 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { ArrowLeft, Upload, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Check, Upload } from 'lucide-react';
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
 import { Label } from '@/app/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/components/ui/select';
 import { Textarea } from '@/app/components/ui/textarea';
 import { useAuth } from '@/app/context/AuthContext';
-import { useWorkers } from '@/app/context/WorkerContext';
 import { skills } from '@/app/data/mockData';
 import { toast } from 'sonner';
+import { apiUrl } from '@/app/lib/api';
+
+type FormValues = {
+  name: string;
+  email: string;
+  password: string;
+  phone: string;
+  skill: string;
+  experience: string;
+  pricePerDay: string;
+  address: string;
+  aadhaar: string;
+  photo: File | null;
+};
+
+type FormErrors = Partial<Record<keyof FormValues, string>>;
+
+const stepFieldMap: Record<number, (keyof FormValues)[]> = {
+  1: ['name', 'email', 'password', 'phone', 'address'],
+  2: ['skill', 'experience', 'pricePerDay'],
+  3: ['aadhaar', 'photo'],
+};
+
+const allFields: (keyof FormValues)[] = [
+  'name',
+  'email',
+  'password',
+  'phone',
+  'skill',
+  'experience',
+  'pricePerDay',
+  'address',
+  'aadhaar',
+  'photo',
+];
 
 export function WorkerOnboarding() {
   const navigate = useNavigate();
   const { login } = useAuth();
-  const { addWorker } = useWorkers();
   const [step, setStep] = useState(1);
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormValues>({
     name: '',
     email: '',
     password: '',
@@ -26,76 +59,172 @@ export function WorkerOnboarding() {
     pricePerDay: '',
     address: '',
     aadhaar: '',
-    photo: null as File | null,
+    photo: null,
   });
+  const [errors, setErrors] = useState<FormErrors>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
 
-  const handleSubmit = async () => {
-    // Validate all fields
-    if (!formData.name || !formData.email || !formData.password || !formData.phone || !formData.skill || !formData.experience || !formData.pricePerDay || !formData.address) {
-      toast.error('Please fill all required fields');
+  useEffect(() => {
+    if (!formData.photo) {
+      setPhotoPreview(null);
       return;
     }
 
-    // Email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(formData.email)) {
-      toast.error('Please enter a valid email address');
+    const objectUrl = URL.createObjectURL(formData.photo);
+    setPhotoPreview(objectUrl);
+
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [formData.photo]);
+
+  const isEmpty = (value: string | File | null) => {
+    if (value === null) return true;
+    if (typeof value === 'string') return value.trim().length === 0;
+    return false;
+  };
+
+  const sanitizeAadhaar = (value: string) => value.replace(/\D/g, '').slice(0, 12);
+  const sanitizePhone = (value: string) => value.replace(/\D/g, '').slice(0, 10);
+
+  const validateFields = (fields: (keyof FormValues)[]) => {
+    const nextErrors: FormErrors = {};
+
+    fields.forEach((field) => {
+      if (field === 'aadhaar') {
+        const aadhaar = sanitizeAadhaar(String(formData.aadhaar));
+        if (aadhaar.length === 0) {
+          nextErrors.aadhaar = 'This field is required';
+        } else if (aadhaar.length < 12) {
+          nextErrors.aadhaar = 'Aadhaar number must be exactly 12 digits';
+        }
+        return;
+      }
+
+      if (field === 'phone') {
+        const phone = sanitizePhone(String(formData.phone));
+        if (phone.length === 0) {
+          nextErrors.phone = 'This field is required';
+        } else if (phone.length < 10) {
+          nextErrors.phone = 'Mobile number must be exactly 10 digits';
+        }
+        return;
+      }
+
+      if (isEmpty(formData[field])) {
+        nextErrors[field] = 'This field is required';
+      }
+    });
+
+    setErrors((prev) => ({ ...prev, ...nextErrors }));
+    return Object.keys(nextErrors).length === 0;
+  };
+
+  const updateField = (field: keyof FormValues, value: string | File | null) => {
+    if (field === 'aadhaar' && typeof value === 'string') {
+      const aadhaar = sanitizeAadhaar(value);
+      setFormData((prev) => ({ ...prev, aadhaar }));
+
+      if (aadhaar.length === 0) {
+        setErrors((prev) => ({ ...prev, aadhaar: '' }));
+      } else if (aadhaar.length < 12) {
+        setErrors((prev) => ({ ...prev, aadhaar: 'Aadhaar number must be exactly 12 digits' }));
+      } else {
+        setErrors((prev) => ({ ...prev, aadhaar: '' }));
+      }
       return;
     }
 
-    // Password validation
-    if (formData.password.length < 6) {
-      toast.error('Password must be at least 6 characters long');
+    if (field === 'phone' && typeof value === 'string') {
+      const phone = sanitizePhone(value);
+      setFormData((prev) => ({ ...prev, phone }));
+
+      if (phone.length === 0) {
+        setErrors((prev) => ({ ...prev, phone: '' }));
+      } else if (phone.length < 10) {
+        setErrors((prev) => ({ ...prev, phone: 'Mobile number must be exactly 10 digits' }));
+      } else {
+        setErrors((prev) => ({ ...prev, phone: '' }));
+      }
       return;
     }
 
+    setFormData((prev) => ({ ...prev, [field]: value }));
+
+    if (!isEmpty(value)) {
+      setErrors((prev) => ({ ...prev, [field]: '' }));
+    }
+  };
+
+  const handleNext = () => {
+    const isStepValid = validateFields(stepFieldMap[step]);
+    if (!isStepValid) return;
+    setStep((prev) => Math.min(prev + 1, 3));
+  };
+
+  const canSubmit = useMemo(() => {
+    return allFields.every((field) => {
+      if (field === 'aadhaar') return sanitizeAadhaar(formData.aadhaar).length === 12;
+      if (field === 'phone') return sanitizePhone(formData.phone).length === 10;
+      return !isEmpty(formData[field]);
+    });
+  }, [formData]);
+
+  const onSubmit = async () => {
+    const isValid = validateFields(allFields);
+    if (!isValid) return;
+
+    setIsSubmitting(true);
     try {
       const payload = {
-        name: formData.name,
-        email: formData.email,
-        password: formData.password,
-        phone: formData.phone,
-        skill: formData.skill,
-        experience: parseInt(formData.experience),
-        pricePerDay: parseInt(formData.pricePerDay),
-        address: formData.address,
-        aadhaar: formData.aadhaar || '',
+        name: formData.name.trim(),
+        email: formData.email.trim(),
+        password: formData.password.trim(),
+        phone: formData.phone.trim(),
+        skill: formData.skill.trim(),
+        experience: formData.experience.trim(),
+        pricePerDay: formData.pricePerDay.trim(),
+        address: formData.address.trim(),
+        aadhaar: formData.aadhaar.trim(),
       };
 
-      console.log('Sending registration request:', { ...payload, password: '***' });
+      const form = new FormData();
+      Object.entries(payload).forEach(([key, value]) => form.append(key, value));
+      if (formData.photo) {
+        form.append('photo', formData.photo);
+      }
 
-      // Register worker via API
-      const response = await fetch('http://localhost:5000/api/workers/register', {
+      if (navigator.geolocation) {
+        await new Promise<void>((resolve) => {
+          navigator.geolocation.getCurrentPosition(
+            (pos) => {
+              form.append('lat', String(pos.coords.latitude));
+              form.append('lng', String(pos.coords.longitude));
+              resolve();
+            },
+            () => resolve(),
+            { enableHighAccuracy: true, timeout: 4000 }
+          );
+        });
+      }
+
+      const response = await fetch(apiUrl('/api/workers/register'), {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
+        body: form,
       });
 
-      console.log('Response status:', response.status);
-      console.log('Response headers:', response.headers);
-
-      // Check if response is JSON
       const contentType = response.headers.get('content-type');
       if (!contentType || !contentType.includes('application/json')) {
-        const text = await response.text();
-        console.error('Non-JSON response:', text);
         toast.error('Server returned invalid response. Please check if backend is running.');
         return;
       }
 
       const data = await response.json();
-      console.log('Response data:', data);
-
       if (!response.ok) {
         toast.error(data.message || 'Registration failed');
         return;
       }
 
-      // Login the worker
-      console.log('Attempting worker login...');
-      const loginResponse = await fetch('http://localhost:5000/api/auth/worker/login', {
+      const loginResponse = await fetch(apiUrl('/api/auth/worker/login'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -107,13 +236,9 @@ export function WorkerOnboarding() {
       });
 
       const loginData = await loginResponse.json();
-      console.log('Login response:', loginData);
-
       if (loginResponse.ok) {
-        // Store token
         localStorage.setItem('token', loginData.token);
-        
-        // Log in the worker using context
+
         login({
           id: loginData.user.id,
           name: loginData.user.name,
@@ -125,84 +250,83 @@ export function WorkerOnboarding() {
         });
 
         toast.success('Registration successful! Redirecting to your dashboard...');
-
-        // Redirect to worker dashboard
-        setTimeout(() => {
-          navigate('/worker/dashboard');
-        }, 1500);
+        setTimeout(() => navigate('/worker/dashboard'), 1500);
       } else {
         toast.error(loginData.message || 'Login failed after registration');
       }
-    } catch (error) {
-      console.error('Registration error:', error);
-      toast.error('Failed to connect to server. Please ensure backend is running on http://localhost:5000');
+    } catch {
+      toast.error('Failed to connect to server. Please ensure backend is running.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const updateField = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  };
-
   return (
-    <div className="min-h-screen relative" style={{backgroundImage: 'url(https://as1.ftcdn.net/v2/jpg/06/99/03/42/1000_F_699034283_p567iQuz3FXu930InT3TysoVZNMeLi9Y.jpg)', backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat'}}>
-      {/* Background Overlay */}
-      <div className="absolute inset-0 bg-black/20"></div>
-      <div className="absolute inset-0 bg-white/10 backdrop-blur-sm"></div>
-      {/* Header */}
+    <div
+      className="min-h-screen relative"
+      style={{
+        backgroundImage:
+          'url(https://as1.ftcdn.net/v2/jpg/06/99/03/42/1000_F_699034283_p567iQuz3FXu930InT3TysoVZNMeLi9Y.jpg)',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+      }}
+    >
+      <div className="absolute inset-0 bg-black/20" />
+      <div className="absolute inset-0 bg-white/10 backdrop-blur-sm" />
+
       <header className="bg-white/95 backdrop-blur-sm shadow-sm relative z-20">
-        <div className="max-w-3xl mx-auto px-4 py-4">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate('/')}
-            className="gap-2"
-          >
+        <div className="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between">
+          <Button variant="ghost" size="sm" onClick={() => navigate('/')} className="gap-2">
             <ArrowLeft className="h-4 w-4" />
             Back
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => navigate('/auth')}>
+            Already Registered? Login
           </Button>
         </div>
       </header>
 
-      {/* Main Content */}
       <div className="max-w-3xl mx-auto px-4 py-8 relative z-20">
-        {/* Progress Steps */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            {[1, 2, 3].map((num) => (
-              <div key={num} className="flex items-center flex-1">
-                <div
-                  className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold ${
-                    step >= num
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-200 text-gray-500'
-                  }`}
-                >
-                  {step > num ? <CheckCircle2 className="h-6 w-6" /> : num}
-                </div>
-                {num < 3 && (
+        <div className="mb-10">
+          <div className="relative px-1">
+            <div className="absolute top-5 left-6 right-6 h-1 bg-gray-200 rounded-full" />
+            <div
+              className="absolute top-5 left-6 h-1 bg-blue-600 rounded-full transition-all duration-300"
+              style={{ width: `calc((100% - 3rem) * ${(step - 1) / 2})` }}
+            />
+
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { id: 1, label: 'Basic Info' },
+                { id: 2, label: 'Professional' },
+                { id: 3, label: 'Verification' },
+              ].map((item) => (
+                <div key={item.id} className="flex flex-col items-center text-center">
                   <div
-                    className={`flex-1 h-1 mx-2 ${
-                      step > num ? 'bg-blue-600' : 'bg-gray-200'
+                    className={`z-10 h-10 w-10 rounded-full flex items-center justify-center font-semibold border-2 transition-all duration-300 ${
+                      step > item.id
+                        ? 'bg-blue-600 border-blue-600 text-white'
+                        : step === item.id
+                          ? 'bg-white border-blue-600 text-blue-600'
+                          : 'bg-white border-gray-300 text-gray-400'
                     }`}
-                  />
-                )}
-              </div>
-            ))}
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className={step >= 1 ? 'text-blue-600 font-medium' : 'text-gray-500'}>
-              Basic Info
-            </span>
-            <span className={step >= 2 ? 'text-blue-600 font-medium' : 'text-gray-500'}>
-              Professional
-            </span>
-            <span className={step >= 3 ? 'text-blue-600 font-medium' : 'text-gray-500'}>
-              Verification
-            </span>
+                  >
+                    {step > item.id ? <Check className="h-5 w-5" /> : item.id}
+                  </div>
+                  <span
+                    className={`mt-3 text-xs sm:text-sm transition-colors ${
+                      step >= item.id ? 'text-blue-700 font-semibold' : 'text-gray-500'
+                    }`}
+                  >
+                    {item.label}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
-        {/* Form */}
         <div className="bg-white rounded-2xl shadow-xl p-8">
           <h2 className="text-2xl font-bold text-gray-900 mb-6">
             {step === 1 && 'Basic Information'}
@@ -210,9 +334,8 @@ export function WorkerOnboarding() {
             {step === 3 && 'Verification Documents'}
           </h2>
 
-          {/* Step 1: Basic Info */}
           {step === 1 && (
-            <div className="space-y-4">
+            <div className="space-y-4 transition-all duration-300">
               <div>
                 <Label htmlFor="name">Full Name *</Label>
                 <Input
@@ -221,6 +344,7 @@ export function WorkerOnboarding() {
                   value={formData.name}
                   onChange={(e) => updateField('name', e.target.value)}
                 />
+                {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name}</p>}
               </div>
 
               <div>
@@ -232,9 +356,8 @@ export function WorkerOnboarding() {
                   value={formData.email}
                   onChange={(e) => updateField('email', e.target.value)}
                 />
-                <p className="text-sm text-gray-500 mt-1">
-                  You'll use this email to login
-                </p>
+                <p className="text-sm text-gray-500 mt-1">You will use this email to login</p>
+                {errors.email && <p className="mt-1 text-sm text-red-600">{errors.email}</p>}
               </div>
 
               <div>
@@ -246,9 +369,8 @@ export function WorkerOnboarding() {
                   value={formData.password}
                   onChange={(e) => updateField('password', e.target.value)}
                 />
-                <p className="text-sm text-gray-500 mt-1">
-                  Minimum 6 characters
-                </p>
+                <p className="text-sm text-gray-500 mt-1">Minimum 6 characters</p>
+                {errors.password && <p className="mt-1 text-sm text-red-600">{errors.password}</p>}
               </div>
 
               <div>
@@ -260,12 +382,14 @@ export function WorkerOnboarding() {
                   <Input
                     id="phone"
                     type="tel"
-                    placeholder="Enter 10-digit number"
-                    value={formData.phone}
-                    onChange={(e) => updateField('phone', e.target.value.replace(/\D/g, '').slice(0, 10))}
+                    placeholder="Enter 10 digit mobile number"
+                    inputMode="numeric"
                     maxLength={10}
+                    value={formData.phone}
+                    onChange={(e) => updateField('phone', e.target.value)}
                   />
                 </div>
+                {errors.phone && <p className="mt-1 text-sm text-red-600">{errors.phone}</p>}
               </div>
 
               <div>
@@ -273,17 +397,17 @@ export function WorkerOnboarding() {
                 <Textarea
                   id="address"
                   placeholder="Enter your full address"
+                  rows={3}
                   value={formData.address}
                   onChange={(e) => updateField('address', e.target.value)}
-                  rows={3}
                 />
+                {errors.address && <p className="mt-1 text-sm text-red-600">{errors.address}</p>}
               </div>
             </div>
           )}
 
-          {/* Step 2: Professional Details */}
           {step === 2 && (
-            <div className="space-y-4">
+            <div className="space-y-4 transition-all duration-300">
               <div>
                 <Label htmlFor="skill">Primary Skill *</Label>
                 <Select value={formData.skill} onValueChange={(value) => updateField('skill', value)}>
@@ -298,113 +422,115 @@ export function WorkerOnboarding() {
                     ))}
                   </SelectContent>
                 </Select>
+                {errors.skill && <p className="mt-1 text-sm text-red-600">{errors.skill}</p>}
               </div>
 
               <div>
                 <Label htmlFor="experience">Years of Experience *</Label>
                 <Input
                   id="experience"
-                  type="number"
+                  type="text"
                   placeholder="e.g., 5"
                   value={formData.experience}
                   onChange={(e) => updateField('experience', e.target.value)}
-                  min="0"
-                  max="50"
                 />
+                {errors.experience && <p className="mt-1 text-sm text-red-600">{errors.experience}</p>}
               </div>
 
               <div>
-                <Label htmlFor="price">Expected Price Per Day (₹) *</Label>
+                <Label htmlFor="price">Expected Price Per Day (Rs) *</Label>
                 <Input
                   id="price"
-                  type="number"
+                  type="text"
                   placeholder="e.g., 800"
                   value={formData.pricePerDay}
                   onChange={(e) => updateField('pricePerDay', e.target.value)}
-                  min="0"
                 />
+                {errors.pricePerDay && <p className="mt-1 text-sm text-red-600">{errors.pricePerDay}</p>}
               </div>
             </div>
           )}
 
-          {/* Step 3: Verification */}
           {step === 3 && (
-            <div className="space-y-4">
+            <div className="space-y-4 transition-all duration-300">
               <div>
                 <Label htmlFor="aadhaar">Aadhaar Number *</Label>
                 <Input
                   id="aadhaar"
                   type="text"
-                  placeholder="XXXX-XXXX-XXXX"
+                  placeholder="Enter Aadhaar number"
+                  inputMode="numeric"
+                  maxLength={12}
                   value={formData.aadhaar}
                   onChange={(e) => updateField('aadhaar', e.target.value)}
-                  maxLength={14}
                 />
-                <p className="text-sm text-gray-500 mt-1">
-                  Your Aadhaar will be verified securely
-                </p>
+                <p className="text-sm text-gray-500 mt-1">Your Aadhaar will be verified securely</p>
+                {errors.aadhaar && <p className="mt-1 text-sm text-red-600">{errors.aadhaar}</p>}
               </div>
 
               <div>
                 <Label htmlFor="photo">Profile Photo *</Label>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-500 transition-colors cursor-pointer">
+                <label
+                  htmlFor="photo"
+                  className="block border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-500 transition-colors cursor-pointer"
+                >
                   <Upload className="h-10 w-10 text-gray-400 mx-auto mb-2" />
                   <p className="text-sm text-gray-600">Click to upload photo</p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Clear face photo required for verification
-                  </p>
-                  <Input
-                    id="photo"
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => {
-                      if (e.target.files?.[0]) {
-                        setFormData(prev => ({ ...prev, photo: e.target.files![0] }));
-                        toast.success('Photo uploaded');
-                      }
-                    }}
-                  />
-                </div>
+                  <p className="text-xs text-gray-500 mt-1">Accepts JPG and PNG. Clear face photo required.</p>
+                </label>
+                <input
+                  id="photo"
+                  type="file"
+                  accept=".jpg,.jpeg,.png"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] ?? null;
+                    updateField('photo', file);
+                    if (file) toast.success('Photo uploaded');
+                  }}
+                />
+                {photoPreview && (
+                  <div className="mt-3">
+                    <img
+                      src={photoPreview}
+                      alt="Profile preview"
+                      className="h-28 w-28 rounded-lg object-cover border border-gray-300"
+                    />
+                  </div>
+                )}
+                {errors.photo && <p className="mt-1 text-sm text-red-600">{errors.photo}</p>}
               </div>
 
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h4 className="font-semibold text-blue-900 mb-2">
-                  📋 What happens next?
-                </h4>
+                <h4 className="font-semibold text-blue-900 mb-2">What happens next?</h4>
                 <ul className="text-sm text-blue-800 space-y-1">
-                  <li>• Your application will be reviewed within 24-48 hours</li>
-                  <li>• You'll receive an OTP for verification</li>
-                  <li>• Once approved, you can start receiving job requests</li>
+                  <li>- Your application will be reviewed within 24-48 hours</li>
+                  <li>- You will receive an OTP for verification</li>
+                  <li>- Once approved, you can start receiving job requests</li>
                 </ul>
               </div>
             </div>
           )}
 
-          {/* Navigation Buttons */}
           <div className="flex gap-4 mt-8">
             {step > 1 && (
               <Button
+                type="button"
                 variant="outline"
-                onClick={() => setStep(step - 1)}
+                onClick={() => setStep((prev) => prev - 1)}
                 className="flex-1"
+                disabled={isSubmitting}
               >
                 Previous
               </Button>
             )}
             {step < 3 ? (
-              <Button
-                onClick={() => setStep(step + 1)}
-                className="flex-1"
-              >
+              <Button type="button" onClick={handleNext} className="flex-1">
                 Next
               </Button>
             ) : (
-              <Button
-                onClick={handleSubmit}
-                className="flex-1"
-              >
-                Submit Application
+              <Button type="button" className="flex-1" disabled={!canSubmit || isSubmitting} onClick={onSubmit}>
+                {isSubmitting ? 'Submitting...' : 'Submit Application'}
               </Button>
             )}
           </div>

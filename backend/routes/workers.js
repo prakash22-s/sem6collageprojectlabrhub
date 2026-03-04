@@ -1,17 +1,37 @@
 import express from 'express';
 import Worker from '../models/Worker.js';
 import User from '../models/User.js';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+import { sendSMSAlert } from '../utils/alerts.js';
 
 const router = express.Router();
+const uploadDir = path.resolve('backend', 'uploads', 'workers');
+fs.mkdirSync(uploadDir, { recursive: true });
+
+const storage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, uploadDir),
+  filename: (_req, file, cb) => {
+    const ext = path.extname(file.originalname || '').toLowerCase() || '.jpg';
+    cb(null, `worker-${Date.now()}${ext}`);
+  },
+});
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+});
 
 // @route   POST /api/workers/register
 // @desc    Register a new worker
 // @access  Public
-router.post('/register', async (req, res) => {
+router.post('/register', upload.single('photo'), async (req, res) => {
   try {
     console.log('Worker registration request received:', req.body);
     
-    const { name, email, password, phone, skill, experience, pricePerDay, address, aadhaar } = req.body;
+    const { name, email, password, phone, skill, experience, pricePerDay, address, aadhaar, lat, lng } = req.body;
+    const image = req.file ? `/uploads/workers/${req.file.filename}` : '';
 
     // Log received fields
     console.log('Received fields:', { name, email, password: '***', phone, skill, experience, pricePerDay, address, aadhaar });
@@ -91,8 +111,23 @@ router.post('/register', async (req, res) => {
       pricePerDay: parseInt(pricePerDay),
       address,
       aadhaar: aadhaar || '',
+      image,
+      onboardingMode: 'online',
+      location:
+        lat && lng
+          ? {
+              lat: parseFloat(lat),
+              lng: parseFloat(lng),
+              updatedAt: new Date(),
+            }
+          : undefined,
     });
     console.log('Worker created:', worker._id);
+
+    await sendSMSAlert(
+      phone,
+      `LabourHub: Hi ${name}, your onboarding request was received. We will review and verify your profile soon.`
+    );
 
     res.status(201).json({
       success: true,
@@ -121,6 +156,70 @@ router.post('/register', async (req, res) => {
   }
 });
 
+// @route   POST /api/workers/offline-register
+// @desc    Offline worker onboarding by support/admin agent
+// @access  Public
+router.post('/offline-register', async (req, res) => {
+  try {
+    const {
+      name,
+      phone,
+      skill,
+      experience,
+      pricePerDay,
+      address,
+      aadhaar,
+      preferredLanguage,
+    } = req.body;
+
+    if (!name || !phone || !skill || !experience || !pricePerDay || !address) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required fields for offline onboarding',
+      });
+    }
+
+    const syntheticEmail = `offline.${phone}.${Date.now()}@labourhub.local`;
+    const syntheticPassword = `offline_${Math.random().toString(36).slice(2, 10)}`;
+
+    const user = await User.create({
+      name,
+      email: syntheticEmail,
+      password: syntheticPassword,
+      role: 'worker',
+    });
+
+    const worker = await Worker.create({
+      userId: user._id,
+      name,
+      email: syntheticEmail,
+      phone,
+      skill,
+      experience: parseInt(experience),
+      pricePerDay: parseInt(pricePerDay),
+      address,
+      aadhaar: aadhaar || '',
+      onboardingMode: 'offline',
+      languages: preferredLanguage ? [preferredLanguage] : ['Hindi'],
+      isOnline: false,
+      isVerified: false,
+    });
+
+    await sendSMSAlert(
+      phone,
+      `LabourHub: ${name}, your offline onboarding is created. You will receive SMS updates after verification.`
+    );
+
+    res.status(201).json({
+      success: true,
+      message: 'Offline onboarding submitted',
+      worker,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // @route   GET /api/workers/all
 // @desc    Get all workers (for admin)
 // @access  Admin
@@ -128,6 +227,49 @@ router.get('/all', async (req, res) => {
   try {
     const workers = await Worker.find({});
     res.json({ success: true, workers });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// @route   GET /api/workers/nearby
+// @desc    Get nearby verified workers using coordinates
+// @access  Public
+router.get('/nearby', async (req, res) => {
+  try {
+    const { lat, lng, radiusKm = 10, skill } = req.query;
+    if (!lat || !lng) {
+      return res.status(400).json({
+        success: false,
+        message: 'lat and lng query params are required',
+      });
+    }
+
+    const originLat = parseFloat(lat);
+    const originLng = parseFloat(lng);
+    const maxRadius = parseFloat(radiusKm);
+
+    const query = { isVerified: true };
+    if (skill) query.skill = skill;
+
+    const workers = await Worker.find(query);
+
+    const withDistance = workers
+      .map((worker) => {
+        if (worker.location?.lat == null || worker.location?.lng == null) return null;
+        const distanceKm = calculateDistanceKm(
+          originLat,
+          originLng,
+          worker.location.lat,
+          worker.location.lng
+        );
+        return { ...worker.toObject(), distanceKm: Number(distanceKm.toFixed(1)) };
+      })
+      .filter(Boolean)
+      .filter((worker) => worker.distanceKm <= maxRadius)
+      .sort((a, b) => a.distanceKm - b.distanceKm);
+
+    res.json({ success: true, workers: withDistance });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -164,6 +306,21 @@ router.get('/', async (req, res) => {
   }
 });
 
+// @route   GET /api/workers/:id/tracking
+// @desc    Get latest worker location for live tracking
+// @access  Public
+router.get('/:id/tracking', async (req, res) => {
+  try {
+    const worker = await Worker.findById(req.params.id).select('name isOnline location');
+    if (!worker) {
+      return res.status(404).json({ success: false, message: 'Worker not found' });
+    }
+    res.json({ success: true, worker });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // @route   GET /api/workers/:id
 // @desc    Get worker by ID
 // @access  Public
@@ -196,6 +353,10 @@ router.put('/:id/approve', async (req, res) => {
 
     // Update user verification status
     await User.findByIdAndUpdate(worker.userId, { role: 'worker' });
+    await sendSMSAlert(
+      worker.phone,
+      `LabourHub: Congratulations ${worker.name}, your profile is verified. You can now go online and accept jobs.`
+    );
 
     res.json({ success: true, worker });
   } catch (error) {
@@ -240,5 +401,50 @@ router.put('/:id/status', async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 });
+
+// @route   PUT /api/workers/:id/location
+// @desc    Update worker live location
+// @access  Worker
+router.put('/:id/location', async (req, res) => {
+  try {
+    const { lat, lng } = req.body;
+    if (typeof lat !== 'number' || typeof lng !== 'number') {
+      return res.status(400).json({
+        success: false,
+        message: 'lat and lng must be numbers',
+      });
+    }
+
+    const worker = await Worker.findByIdAndUpdate(
+      req.params.id,
+      {
+        location: { lat, lng, updatedAt: new Date() },
+      },
+      { new: true }
+    );
+
+    if (!worker) {
+      return res.status(404).json({ success: false, message: 'Worker not found' });
+    }
+
+    res.json({ success: true, worker });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+function calculateDistanceKm(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
 
 export default router;

@@ -2,11 +2,12 @@
 
 export interface Worker {
   id: string;
+  _id?: string;
   name: string;
   skill: string;
   rating: number;
   experience: number; // years
-  distanceKm: number;
+  distanceKm?: number;
   phone: string;
   isVerified: boolean;
   isOnline: boolean;
@@ -17,6 +18,11 @@ export interface Worker {
   address: string;
   aadhaarVerified: boolean;
   policeVerified: boolean;
+  location?: {
+    lat?: number;
+    lng?: number;
+    updatedAt?: string;
+  };
 }
 
 export interface Booking {

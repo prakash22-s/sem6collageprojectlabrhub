@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/app/components/ui/badge';
 import { skills, type Worker } from '@/app/data/mockData';
 import { useAuth } from '@/app/context/AuthContext';
+import { apiUrl } from '@/app/lib/api';
 
 export function WorkerListing() {
   const navigate = useNavigate();
@@ -18,12 +19,23 @@ export function WorkerListing() {
   const [sortBy, setSortBy] = useState<'rating' | 'distance' | 'price'>('rating');
 
   useEffect(() => {
-    fetchWorkers();
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => fetchWorkers(pos.coords.latitude, pos.coords.longitude),
+        () => fetchWorkers()
+      );
+    } else {
+      fetchWorkers();
+    }
   }, []);
 
-  const fetchWorkers = async () => {
+  const fetchWorkers = async (lat?: number, lng?: number) => {
     try {
-      const response = await fetch('http://localhost:5000/api/workers');
+      const endpoint =
+        lat != null && lng != null
+          ? apiUrl(`/api/workers/nearby?lat=${lat}&lng=${lng}&radiusKm=25`)
+          : apiUrl('/api/workers');
+      const response = await fetch(endpoint);
       const data = await response.json();
       if (data.success) {
         setWorkers(data.workers);
@@ -209,7 +221,7 @@ function WorkerCard({ worker }: { worker: Worker }) {
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => navigate(`/worker/${worker.id}`)}
+                onClick={() => navigate(`/worker/${worker._id || worker.id}`)}
               >
                 View Profile
               </Button>

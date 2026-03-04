@@ -72,6 +72,22 @@ const workerSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    location: {
+      lat: {
+        type: Number,
+      },
+      lng: {
+        type: Number,
+      },
+      updatedAt: {
+        type: Date,
+      },
+    },
+    onboardingMode: {
+      type: String,
+      enum: ['online', 'offline'],
+      default: 'online',
+    },
   },
   { timestamps: true }
 );

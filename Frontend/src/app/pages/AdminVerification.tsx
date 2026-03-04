@@ -6,12 +6,23 @@ import { Badge } from '@/app/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/app/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/app/components/ui/dialog';
 import { toast } from 'sonner';
+import { apiUrl } from '@/app/lib/api';
+import { Input } from '@/app/components/ui/input';
+import { Label } from '@/app/components/ui/label';
 
 export function AdminVerification() {
   const navigate = useNavigate();
   const [workers, setWorkers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedWorker, setSelectedWorker] = useState<any | null>(null);
+  const [offlineForm, setOfflineForm] = useState({
+    name: '',
+    phone: '',
+    skill: '',
+    experience: '',
+    pricePerDay: '',
+    address: '',
+  });
 
   const pendingWorkers = workers.filter(w => !w.isVerified);
   const approvedWorkers = workers.filter(w => w.isVerified);
@@ -22,7 +33,7 @@ export function AdminVerification() {
 
   const fetchWorkers = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/workers/all');
+      const response = await fetch(apiUrl('/api/workers/all'));
       const data = await response.json();
       if (data.success) {
         setWorkers(data.workers);
@@ -40,7 +51,7 @@ export function AdminVerification() {
 
   const handleApprove = async (workerId: string) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/workers/${workerId}/approve`, {
+      const response = await fetch(apiUrl(`/api/workers/${workerId}/approve`), {
         method: 'PUT',
       });
       const data = await response.json();
@@ -58,7 +69,7 @@ export function AdminVerification() {
 
   const handleReject = async (workerId: string) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/workers/${workerId}/reject`, {
+      const response = await fetch(apiUrl(`/api/workers/${workerId}/reject`), {
         method: 'DELETE',
       });
       const data = await response.json();
@@ -71,6 +82,29 @@ export function AdminVerification() {
     } catch (error) {
       console.error('Reject error:', error);
       toast.error('Failed to reject worker');
+    }
+  };
+
+  const handleOfflineOnboard = async () => {
+    const response = await fetch(apiUrl('/api/workers/offline-register'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(offlineForm),
+    });
+    const data = await response.json();
+    if (data.success) {
+      toast.success('Offline onboarding submitted');
+      setOfflineForm({
+        name: '',
+        phone: '',
+        skill: '',
+        experience: '',
+        pricePerDay: '',
+        address: '',
+      });
+      fetchWorkers();
+    } else {
+      toast.error(data.message || 'Failed to submit offline onboarding');
     }
   };
 
@@ -90,6 +124,36 @@ export function AdminVerification() {
       </header>
 
       <div className="max-w-7xl mx-auto px-4 py-6">
+        <div className="bg-white rounded-lg shadow p-4 mb-6">
+          <h2 className="font-semibold text-gray-900 mb-3">Offline Worker Onboarding</h2>
+          <div className="grid md:grid-cols-3 gap-3">
+            <div>
+              <Label>Name</Label>
+              <Input value={offlineForm.name} onChange={(e) => setOfflineForm({ ...offlineForm, name: e.target.value })} />
+            </div>
+            <div>
+              <Label>Phone</Label>
+              <Input value={offlineForm.phone} onChange={(e) => setOfflineForm({ ...offlineForm, phone: e.target.value })} />
+            </div>
+            <div>
+              <Label>Skill</Label>
+              <Input value={offlineForm.skill} onChange={(e) => setOfflineForm({ ...offlineForm, skill: e.target.value })} />
+            </div>
+            <div>
+              <Label>Experience</Label>
+              <Input value={offlineForm.experience} onChange={(e) => setOfflineForm({ ...offlineForm, experience: e.target.value })} />
+            </div>
+            <div>
+              <Label>Price Per Day</Label>
+              <Input value={offlineForm.pricePerDay} onChange={(e) => setOfflineForm({ ...offlineForm, pricePerDay: e.target.value })} />
+            </div>
+            <div>
+              <Label>Address</Label>
+              <Input value={offlineForm.address} onChange={(e) => setOfflineForm({ ...offlineForm, address: e.target.value })} />
+            </div>
+          </div>
+          <Button className="mt-3" onClick={handleOfflineOnboard}>Submit Offline Entry</Button>
+        </div>
         {loading ? (
           <div className="bg-white rounded-lg shadow p-8 text-center">
             <p className="text-gray-500">Loading workers...</p>

@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/app/components/ui/ta
 import { Badge } from '@/app/components/ui/badge';
 import { useAuth } from '@/app/context/AuthContext';
 import { toast } from 'sonner';
+import { apiUrl } from '@/app/lib/api';
 
 export function CustomerDashboard() {
   const navigate = useNavigate();
@@ -20,8 +21,9 @@ export function CustomerDashboard() {
   }, [user]);
 
   const fetchBookings = async () => {
+    if (!user?.id) return;
     try {
-      const response = await fetch(`http://localhost:5000/api/bookings/customer/${user.id}`);
+      const response = await fetch(apiUrl(`/api/bookings/customer/${user.id}`));
       const data = await response.json();
       if (data.success) {
         setBookings(data.bookings);
@@ -162,7 +164,7 @@ function BookingCard({ booking, onUpdate }: { booking: any; onUpdate: () => void
 
     setSubmitting(true);
     try {
-      const response = await fetch(`http://localhost:5000/api/bookings/${booking._id}/rate`, {
+      const response = await fetch(apiUrl(`/api/bookings/${booking._id}/rate`), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ rating }),

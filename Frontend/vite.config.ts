@@ -16,4 +16,13 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  server: {
+    fs: {
+      strict: false,
+    },
+  },
+  optimizeDeps: {
+    force: true,
+  },
+  cacheDir: './.vite-cache',
 })

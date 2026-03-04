@@ -5,6 +5,7 @@ import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
 import { useAuth } from '@/app/context/AuthContext';
 import { toast } from 'sonner';
+import { apiUrl } from '@/app/lib/api';
 
 export function CustomerAuth() {
   const navigate = useNavigate();
@@ -15,7 +16,7 @@ export function CustomerAuth() {
   const [name, setName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const API_URL = 'http://localhost:5000/api/auth';
+  const API_URL = apiUrl('/api/auth');
 
   const handleLogin = async () => {
     if (!email.trim()) {
@@ -67,7 +68,7 @@ export function CustomerAuth() {
       } else if (userRole === 'customer') {
         navigate('/workers');
       } else if (userRole === 'admin') {
-        navigate('/admin/dashboard');
+        navigate('/admin');
       } else {
         navigate('/workers');
       }

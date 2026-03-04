@@ -6,24 +6,41 @@ import { Input } from '@/app/components/ui/input';
 import { Label } from '@/app/components/ui/label';
 import { useAuth } from '@/app/context/AuthContext';
 import { toast } from 'sonner';
+import { apiUrl } from '@/app/lib/api';
 
 export function AdminLogin() {
   const navigate = useNavigate();
   const { login } = useAuth();
-  const [credentials, setCredentials] = useState({ username: '', password: '' });
+  const [credentials, setCredentials] = useState({ email: '', password: '' });
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = () => {
-    if (credentials.username === 'admin' && credentials.password === 'admin123') {
+  const handleLogin = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(apiUrl('/api/auth/login'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: credentials.email,
+          password: credentials.password,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok || data.user?.role !== 'admin') {
+        toast.error(data.message || 'Invalid admin credentials');
+        return;
+      }
+      localStorage.setItem('token', data.token);
       login({
-        id: 'A001',
-        name: 'Admin',
-        phone: '',
+        id: data.user.id,
+        name: data.user.name,
+        email: data.user.email,
         role: 'admin',
       });
       toast.success('Admin login successful');
       navigate('/admin');
-    } else {
-      toast.error('Invalid credentials');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -51,12 +68,12 @@ export function AdminLogin() {
 
             <div className="space-y-4">
               <div>
-                <Label htmlFor="username">Username</Label>
+                <Label htmlFor="email">Email</Label>
                 <Input
-                  id="username"
-                  placeholder="Enter username"
-                  value={credentials.username}
-                  onChange={(e) => setCredentials({ ...credentials, username: e.target.value })}
+                  id="email"
+                  placeholder="Enter admin email"
+                  value={credentials.email}
+                  onChange={(e) => setCredentials({ ...credentials, email: e.target.value })}
                 />
               </div>
 
@@ -71,14 +88,10 @@ export function AdminLogin() {
                 />
               </div>
 
-              <Button onClick={handleLogin} className="w-full" size="lg">
-                Sign In
+              <Button onClick={handleLogin} className="w-full" size="lg" disabled={loading}>
+                {loading ? 'Signing In...' : 'Sign In'}
               </Button>
             </div>
-
-            <p className="text-center text-xs text-gray-500 mt-6">
-              Demo credentials: admin / admin123
-            </p>
           </div>
         </div>
       </div>
