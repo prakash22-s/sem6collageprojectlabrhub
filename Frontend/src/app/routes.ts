@@ -7,6 +7,7 @@ import { WorkerProfile } from '@/app/pages/WorkerProfile';
 import { HireWorker } from '@/app/pages/HireWorker';
 import { BookingPage } from '@/app/pages/BookingPage';
 import { CustomerDashboard } from '@/app/pages/CustomerDashboard';
+import { UserDashboard } from '@/app/pages/UserDashboard';
 import { RatingFeedback } from '@/app/pages/RatingFeedback';
 import { NewWorkerDashboard } from '@/app/pages/NewWorkerDashboard';
 import { AdminLogin } from '@/app/pages/AdminLogin';
@@ -28,7 +29,7 @@ export const router = createBrowserRouter([
   },
   {
     path: '/workers',
-    Component: WorkerListing,
+    Component: UserDashboard,
   },
   {
     path: '/worker/:id',

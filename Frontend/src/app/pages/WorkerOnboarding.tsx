@@ -281,7 +281,7 @@ export function WorkerOnboarding() {
             <ArrowLeft className="h-4 w-4" />
             Back
           </Button>
-          <Button variant="outline" size="sm" onClick={() => navigate('/auth')}>
+          <Button size="sm" onClick={() => navigate('/auth')} className="bg-blue-600 hover:bg-blue-700">
             Already Registered? Login
           </Button>
         </div>
