@@ -103,7 +103,7 @@ export function NewWorkerDashboard() {
   const pending = bookings.filter((b) => b.status === 'pending');
   const active = bookings.filter((b) => b.status === 'confirmed');
   const completed = bookings.filter((b) => b.status === 'completed');
-  const reviews = useMemo(() => completed.filter((b) => b.rating && b.review), [completed]);
+  const reviews = useMemo(() => completed.filter((b) => b.rating), [completed]);
 
   if (!user || user.role !== 'worker') return null;
 
@@ -207,14 +207,31 @@ export function NewWorkerDashboard() {
             {reviews.map((review) => (
               <Card key={review._id}>
                 <CardContent className="p-4">
-                  <div className="flex justify-between items-start">
-                    <div className="font-semibold">{review.customerName}</div>
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <div className="font-semibold">{review.customerName}</div>
+                      <div className="text-xs text-gray-500">{review.date}</div>
+                    </div>
                     <div className="flex items-center gap-1">
-                      <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                      {review.rating}
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <Star
+                          key={star}
+                          className={`h-4 w-4 ${
+                            star <= review.rating
+                              ? 'fill-yellow-400 text-yellow-400'
+                              : 'text-gray-300'
+                          }`}
+                        />
+                      ))}
+                      <span className="ml-1 text-sm font-medium">{review.rating}</span>
                     </div>
                   </div>
-                  <p className="text-sm text-gray-600 mt-2">{review.review}</p>
+                  {review.review && (
+                    <p className="text-sm text-gray-600 mt-2">{review.review}</p>
+                  )}
+                  <div className="mt-2 text-xs text-gray-500">
+                    Job: {review.workerSkill} • Amount: ₹{review.amount}
+                  </div>
                 </CardContent>
               </Card>
             ))}
